@@ -1,210 +1,241 @@
+```javascript
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
-const Database = require("better-sqlite3");
+const { Pool } = require("pg");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
-const PORT = 3000;
 
-// ==========================================
+const PORT = process.env.PORT || 3000;
+
+// =====================================================
 // CONFIGURAÇÕES
-// ==========================================
+// =====================================================
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Arquivos públicos
-app.use(express.static(path.join(__dirname, "public")));
+// =====================================================
+// ARQUIVOS PÚBLICOS
+// =====================================================
 
-// ==========================================
-// PASTA DE UPLOADS
-// ==========================================
+app.use(
+    express.static(
+        path.join(__dirname, "public")
+    )
+);
 
-const pastaUploads = path.join(__dirname, "uploads");
+// =====================================================
+// SUPABASE
+// =====================================================
 
-if (!fs.existsSync(pastaUploads)) {
-    fs.mkdirSync(pastaUploads);
+const DATABASE_URL =
+    process.env.DATABASE_URL;
+
+const SUPABASE_URL =
+    process.env.SUPABASE_URL;
+
+const SUPABASE_KEY =
+    process.env.SUPABASE_KEY;
+
+if (!DATABASE_URL) {
+    console.error(
+        "❌ DATABASE_URL não configurada."
+    );
 }
 
-// ==========================================
-// UPLOAD DE IMAGENS
-// ==========================================
+if (!SUPABASE_URL) {
+    console.error(
+        "❌ SUPABASE_URL não configurada."
+    );
+}
 
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, pastaUploads);
-    },
+if (!SUPABASE_KEY) {
+    console.error(
+        "❌ SUPABASE_KEY não configurada."
+    );
+}
 
-    filename: function (req, file, cb) {
-
-        const extensao =
-            path.extname(file.originalname);
-
-        const nome =
-            Date.now() + extensao;
-
-        cb(null, nome);
+const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
     }
 });
 
-const upload = multer({
-    storage: storage
-});
-
-// ==========================================
-// BANCO DE DADOS
-// ==========================================
-
-const db = new Database(
-    path.join(__dirname, "database.db")
-);
-
-db.pragma("foreign_keys = ON");
-
-// ==========================================
-// TABELA DE ADMINISTRADORES
-// ==========================================
-
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS administradores (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        usuario TEXT UNIQUE NOT NULL,
-        senha TEXT NOT NULL
-    )
-`).run();
-
-// ==========================================
-// ADMIN PADRÃO
-// ==========================================
-
-const adminExiste = db.prepare(`
-    SELECT id
-    FROM administradores
-    WHERE usuario = ?
-`).get("admin");
-
-if (!adminExiste) {
-
-    db.prepare(`
-        INSERT INTO administradores
-        (usuario, senha)
-        VALUES (?, ?)
-    `).run(
-        "admin",
-        "1234"
+const supabase =
+    createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
     );
 
+// =====================================================
+// UPLOAD DE IMAGENS
+// =====================================================
+
+const upload =
+    multer({
+        storage: multer.memoryStorage(),
+        limits: {
+            fileSize: 3 * 1024 * 1024
+        }
+    });
+
+// =====================================================
+// FUNÇÃO PARA EXECUTAR SQL
+// =====================================================
+
+async function query(text, params = []) {
+
+    const resultado =
+        await pool.query(
+            text,
+            params
+        );
+
+    return resultado;
 }
 
-// ==========================================
-// TABELA DE PRODUTOS
-// ==========================================
+// =====================================================
+// CRIAR TABELAS
+// =====================================================
 
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS produtos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        descricao TEXT,
-        preco REAL NOT NULL,
-        imagem TEXT,
-        ativo INTEGER DEFAULT 1,
-        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-`).run();
+async function inicializarBanco() {
 
-// ==========================================
-// TABELA DE REGIÕES
-// ==========================================
+    await query(`
+        CREATE TABLE IF NOT EXISTS administradores (
+            id BIGSERIAL PRIMARY KEY,
+            usuario TEXT UNIQUE NOT NULL,
+            senha TEXT NOT NULL
+        )
+    `);
 
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS regioes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT NOT NULL,
-        tipo TEXT NOT NULL,
-        taxa REAL NOT NULL
-    )
-`).run();
+    await query(`
+        CREATE TABLE IF NOT EXISTS produtos (
+            id BIGSERIAL PRIMARY KEY,
+            nome TEXT NOT NULL,
+            descricao TEXT,
+            preco NUMERIC(10,2) NOT NULL,
+            imagem TEXT,
+            ativo INTEGER DEFAULT 1,
+            criado_em TIMESTAMPTZ DEFAULT NOW()
+        )
+    `);
 
-// ==========================================
-// REGIÕES PADRÃO
-// ==========================================
+    await query(`
+        CREATE TABLE IF NOT EXISTS regioes (
+            id BIGSERIAL PRIMARY KEY,
+            nome TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            taxa NUMERIC(10,2) NOT NULL
+        )
+    `);
 
-const quantidadeRegioes =
-    db.prepare(`
-        SELECT COUNT(*) AS total
-        FROM regioes
-    `).get().total;
+    await query(`
+        CREATE TABLE IF NOT EXISTS pedidos (
+            id BIGSERIAL PRIMARY KEY,
+            cliente TEXT NOT NULL,
+            telefone TEXT,
+            endereco TEXT,
+            tipo_entrega TEXT NOT NULL,
+            regiao TEXT,
+            taxa_entrega NUMERIC(10,2) DEFAULT 0,
+            pagamento TEXT,
+            troco_para NUMERIC(10,2) DEFAULT 0,
+            subtotal NUMERIC(10,2) NOT NULL,
+            total NUMERIC(10,2) NOT NULL,
+            status TEXT DEFAULT 'novo',
+            criado_em TIMESTAMPTZ DEFAULT NOW()
+        )
+    `);
 
-if (quantidadeRegioes === 0) {
+    await query(`
+        CREATE TABLE IF NOT EXISTS itens_pedido (
+            id BIGSERIAL PRIMARY KEY,
+            pedido_id BIGINT NOT NULL
+                REFERENCES pedidos(id)
+                ON DELETE CASCADE,
+            produto_id BIGINT,
+            nome_produto TEXT NOT NULL,
+            quantidade INTEGER NOT NULL,
+            preco NUMERIC(10,2) NOT NULL
+        )
+    `);
 
-    db.prepare(`
-        INSERT INTO regioes
-        (nome, tipo, taxa)
-        VALUES (?, ?, ?)
-    `).run(
-        "Perto",
-        "perto",
-        2
-    );
+    // =================================================
+    // ADMIN PADRÃO
+    // =================================================
 
-    db.prepare(`
-        INSERT INTO regioes
-        (nome, tipo, taxa)
-        VALUES (?, ?, ?)
-    `).run(
-        "Longe",
-        "longe",
-        3
+    const admin =
+        await query(`
+            SELECT id
+            FROM administradores
+            WHERE usuario = $1
+            LIMIT 1
+        `, ["admin"]);
+
+    if (admin.rows.length === 0) {
+
+        await query(`
+            INSERT INTO administradores
+            (usuario, senha)
+            VALUES ($1, $2)
+        `, [
+            "admin",
+            "1234"
+        ]);
+
+        console.log(
+            "✅ Administrador padrão criado."
+        );
+    }
+
+    // =================================================
+    // REGIÕES PADRÃO
+    // =================================================
+
+    const regioes =
+        await query(`
+            SELECT COUNT(*) AS total
+            FROM regioes
+        `);
+
+    if (
+        Number(regioes.rows[0].total) === 0
+    ) {
+
+        await query(`
+            INSERT INTO regioes
+            (nome, tipo, taxa)
+            VALUES
+            ($1, $2, $3),
+            ($4, $5, $6)
+        `, [
+            "Perto",
+            "perto",
+            2,
+            "Longe",
+            "longe",
+            3
+        ]);
+
+        console.log(
+            "✅ Regiões padrão criadas."
+        );
+    }
+
+    console.log(
+        "✅ Banco PostgreSQL inicializado."
     );
 }
 
-// ==========================================
-// TABELA DE PEDIDOS
-// ==========================================
-
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS pedidos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        cliente TEXT NOT NULL,
-        telefone TEXT,
-        endereco TEXT,
-        tipo_entrega TEXT NOT NULL,
-        regiao TEXT,
-        taxa_entrega REAL DEFAULT 0,
-        pagamento TEXT,
-        troco_para REAL DEFAULT 0,
-        subtotal REAL NOT NULL,
-        total REAL NOT NULL,
-        status TEXT DEFAULT 'novo',
-        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-`).run();
-
-// ==========================================
-// ITENS DOS PEDIDOS
-// ==========================================
-
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS itens_pedido (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pedido_id INTEGER NOT NULL,
-        produto_id INTEGER,
-        nome_produto TEXT NOT NULL,
-        quantidade INTEGER NOT NULL,
-        preco REAL NOT NULL,
-
-        FOREIGN KEY (pedido_id)
-        REFERENCES pedidos(id)
-        ON DELETE CASCADE
-    )
-`).run();
-
-// ==========================================
+// =====================================================
 // ROTA PRINCIPAL
-// ==========================================
+// =====================================================
 
 app.get("/", (req, res) => {
 
@@ -218,57 +249,143 @@ app.get("/", (req, res) => {
 
 });
 
-// ==========================================
-// TESTE DO SERVIDOR
-// ==========================================
+// =====================================================
+// TESTE
+// =====================================================
 
-app.get("/api/teste", (req, res) => {
+app.get(
+    "/api/teste",
+    async (req, res) => {
 
-    res.json({
-        sucesso: true,
-        mensagem: "Servidor da Docemania funcionando!"
-    });
+        try {
 
-});
+            await query(
+                "SELECT NOW()"
+            );
 
-// ==========================================
+            res.json({
+                sucesso: true,
+                mensagem:
+                    "Servidor da Docemania funcionando!"
+            });
+
+        } catch (erro) {
+
+            console.error(erro);
+
+            res.status(500).json({
+                sucesso: false,
+                erro:
+                    "Banco de dados indisponível."
+            });
+
+        }
+
+    }
+);
+
+// =====================================================
 // LISTAR PRODUTOS
-// ==========================================
+// =====================================================
 
-app.get("/api/produtos", (req, res) => {
+app.get(
+    "/api/produtos",
+    async (req, res) => {
 
-    try {
+        try {
 
-        const produtos =
-            db.prepare(`
-                SELECT *
-                FROM produtos
-                WHERE ativo = 1
-                ORDER BY id DESC
-            `).all();
+            const resultado =
+                await query(`
+                    SELECT *
+                    FROM produtos
+                    WHERE ativo = 1
+                    ORDER BY id DESC
+                `);
 
-        res.json(produtos);
+            res.json(
+                resultado.rows
+            );
 
-    } catch (erro) {
+        } catch (erro) {
 
-        console.error(erro);
+            console.error(erro);
 
-        res.status(500).json({
-            erro: "Erro ao buscar produtos"
-        });
+            res.status(500).json({
+                erro:
+                    "Erro ao buscar produtos"
+            });
+
+        }
+
+    }
+);
+
+// =====================================================
+// UPLOAD PARA SUPABASE STORAGE
+// =====================================================
+
+async function enviarImagemParaSupabase(
+    arquivo
+) {
+
+    if (!arquivo) {
+        return null;
+    }
+
+    const extensao =
+        path.extname(
+            arquivo.originalname
+        );
+
+    const nomeArquivo =
+        `${Date.now()}-${Math.random()
+            .toString(36)
+            .substring(2, 10)}${extensao}`;
+
+    const caminho =
+        `produtos/${nomeArquivo}`;
+
+    const uploadResultado =
+        await supabase.storage
+            .from("produtos")
+            .upload(
+                caminho,
+                arquivo.buffer,
+                {
+                    contentType:
+                        arquivo.mimetype,
+                    upsert: false
+                }
+            );
+
+    if (
+        uploadResultado.error
+    ) {
+
+        throw uploadResultado.error;
 
     }
 
-});
+    const urlResultado =
+        supabase.storage
+            .from("produtos")
+            .getPublicUrl(
+                caminho
+            );
 
-// ==========================================
+    return urlResultado
+        .data
+        .publicUrl;
+}
+
+// =====================================================
 // ADICIONAR PRODUTO
-// ==========================================
+// =====================================================
 
 app.post(
     "/api/produtos",
     upload.single("imagem"),
-    (req, res) => {
+    async (req, res) => {
 
         try {
 
@@ -278,34 +395,52 @@ app.post(
                 preco
             } = req.body;
 
-            if (!nome || !preco) {
+            if (
+                !nome ||
+                !preco
+            ) {
 
                 return res.status(400).json({
-                    erro: "Nome e preço são obrigatórios"
+                    erro:
+                        "Nome e preço são obrigatórios"
                 });
 
             }
 
-            const imagem =
-                req.file
-                    ? `/uploads/${req.file.filename}`
-                    : null;
+            let imagem = null;
+
+            if (req.file) {
+
+                imagem =
+                    await enviarImagemParaSupabase(
+                        req.file
+                    );
+
+            }
 
             const resultado =
-                db.prepare(`
+                await query(`
                     INSERT INTO produtos
-                    (nome, descricao, preco, imagem)
-                    VALUES (?, ?, ?, ?)
-                `).run(
+                    (
+                        nome,
+                        descricao,
+                        preco,
+                        imagem
+                    )
+                    VALUES
+                    ($1, $2, $3, $4)
+                    RETURNING id
+                `, [
                     nome,
                     descricao || "",
                     Number(preco),
                     imagem
-                );
+                ]);
 
             res.json({
                 sucesso: true,
-                id: resultado.lastInsertRowid
+                id:
+                    resultado.rows[0].id
             });
 
         } catch (erro) {
@@ -313,7 +448,8 @@ app.post(
             console.error(erro);
 
             res.status(500).json({
-                erro: "Erro ao adicionar produto"
+                erro:
+                    "Erro ao adicionar produto"
             });
 
         }
@@ -321,19 +457,21 @@ app.post(
     }
 );
 
-// ==========================================
+// =====================================================
 // ATUALIZAR PRODUTO
-// ==========================================
+// =====================================================
 
 app.put(
     "/api/produtos/:id",
     upload.single("imagem"),
-    (req, res) => {
+    async (req, res) => {
 
         try {
 
             const id =
-                Number(req.params.id);
+                Number(
+                    req.params.id
+                );
 
             const {
                 nome,
@@ -343,51 +481,62 @@ app.put(
             } = req.body;
 
             const produto =
-                db.prepare(`
+                await query(`
                     SELECT *
                     FROM produtos
-                    WHERE id = ?
-                `).get(id);
+                    WHERE id = $1
+                `, [id]);
 
-            if (!produto) {
+            if (
+                produto.rows.length === 0
+            ) {
 
                 return res.status(404).json({
-                    erro: "Produto não encontrado"
+                    erro:
+                        "Produto não encontrado"
                 });
 
             }
 
+            const produtoAtual =
+                produto.rows[0];
+
             let imagem =
-                produto.imagem;
+                produtoAtual.imagem;
 
             if (req.file) {
 
                 imagem =
-                    `/uploads/${req.file.filename}`;
+                    await enviarImagemParaSupabase(
+                        req.file
+                    );
 
             }
 
-            db.prepare(`
+            const ativoFinal =
+                ativo === undefined
+                    ? produtoAtual.ativo
+                    : Number(ativo);
+
+            await query(`
                 UPDATE produtos
 
                 SET
-                    nome = ?,
-                    descricao = ?,
-                    preco = ?,
-                    imagem = ?,
-                    ativo = ?
+                    nome = $1,
+                    descricao = $2,
+                    preco = $3,
+                    imagem = $4,
+                    ativo = $5
 
-                WHERE id = ?
-            `).run(
+                WHERE id = $6
+            `, [
                 nome,
                 descricao || "",
                 Number(preco),
                 imagem,
-                ativo === undefined
-                    ? produto.ativo
-                    : Number(ativo),
+                ativoFinal,
                 id
-            );
+            ]);
 
             res.json({
                 sucesso: true
@@ -398,7 +547,8 @@ app.put(
             console.error(erro);
 
             res.status(500).json({
-                erro: "Erro ao atualizar produto"
+                erro:
+                    "Erro ao atualizar produto"
             });
 
         }
@@ -406,23 +556,25 @@ app.put(
     }
 );
 
-// ==========================================
+// =====================================================
 // EXCLUIR PRODUTO
-// ==========================================
+// =====================================================
 
 app.delete(
     "/api/produtos/:id",
-    (req, res) => {
+    async (req, res) => {
 
         try {
 
             const id =
-                Number(req.params.id);
+                Number(
+                    req.params.id
+                );
 
-            db.prepare(`
+            await query(`
                 DELETE FROM produtos
-                WHERE id = ?
-            `).run(id);
+                WHERE id = $1
+            `, [id]);
 
             res.json({
                 sucesso: true
@@ -433,7 +585,8 @@ app.delete(
             console.error(erro);
 
             res.status(500).json({
-                erro: "Erro ao excluir produto"
+                erro:
+                    "Erro ao excluir produto"
             });
 
         }
@@ -441,13 +594,13 @@ app.delete(
     }
 );
 
-// ==========================================
-// LOGIN ADMIN
-// ==========================================
+// =====================================================
+// LOGIN
+// =====================================================
 
 app.post(
     "/api/login",
-    (req, res) => {
+    async (req, res) => {
 
         try {
 
@@ -456,30 +609,34 @@ app.post(
                 senha
             } = req.body;
 
-            const admin =
-                db.prepare(`
+            const resultado =
+                await query(`
                     SELECT id, usuario
                     FROM administradores
-
-                    WHERE usuario = ?
-                    AND senha = ?
-                `).get(
+                    WHERE usuario = $1
+                    AND senha = $2
+                    LIMIT 1
+                `, [
                     usuario,
                     senha
-                );
+                ]);
 
-            if (!admin) {
+            if (
+                resultado.rows.length === 0
+            ) {
 
                 return res.status(401).json({
                     sucesso: false,
-                    mensagem: "Usuário ou senha incorretos"
+                    mensagem:
+                        "Usuário ou senha incorretos"
                 });
 
             }
 
             res.json({
                 sucesso: true,
-                usuario: admin.usuario
+                usuario:
+                    resultado.rows[0].usuario
             });
 
         } catch (erro) {
@@ -487,7 +644,8 @@ app.post(
             console.error(erro);
 
             res.status(500).json({
-                erro: "Erro no login"
+                erro:
+                    "Erro no login"
             });
 
         }
@@ -495,33 +653,48 @@ app.post(
     }
 );
 
-// ==========================================
+// =====================================================
 // LISTAR REGIÕES
-// ==========================================
+// =====================================================
 
 app.get(
     "/api/regioes",
-    (req, res) => {
+    async (req, res) => {
 
-        const regioes =
-            db.prepare(`
-                SELECT *
-                FROM regioes
-                ORDER BY nome
-            `).all();
+        try {
 
-        res.json(regioes);
+            const resultado =
+                await query(`
+                    SELECT *
+                    FROM regioes
+                    ORDER BY nome
+                `);
+
+            res.json(
+                resultado.rows
+            );
+
+        } catch (erro) {
+
+            console.error(erro);
+
+            res.status(500).json({
+                erro:
+                    "Erro ao buscar regiões"
+            });
+
+        }
 
     }
 );
 
-// ==========================================
+// =====================================================
 // CRIAR PEDIDO
-// ==========================================
+// =====================================================
 
 app.post(
     "/api/pedidos",
-    (req, res) => {
+    async (req, res) => {
 
         try {
 
@@ -544,29 +717,53 @@ app.post(
             ) {
 
                 return res.status(400).json({
-                    erro: "Pedido inválido"
+                    erro:
+                        "Pedido inválido"
                 });
 
             }
 
             let subtotal = 0;
 
-            for (const item of itens) {
+            for (
+                const item of itens
+            ) {
+
+                const preco =
+                    Number(item.preco);
+
+                const quantidade =
+                    Number(item.quantidade);
+
+                if (
+                    !Number.isFinite(preco) ||
+                    !Number.isFinite(quantidade) ||
+                    quantidade <= 0
+                ) {
+
+                    return res.status(400).json({
+                        erro:
+                            "Item do pedido inválido"
+                    });
+
+                }
 
                 subtotal +=
-                    Number(item.preco) *
-                    Number(item.quantidade);
+                    preco *
+                    quantidade;
 
             }
 
             const taxa =
-                Number(taxa_entrega || 0);
+                Number(
+                    taxa_entrega || 0
+                );
 
             const total =
                 subtotal + taxa;
 
-            const resultado =
-                db.prepare(`
+            const pedido =
+                await query(`
                     INSERT INTO pedidos
                     (
                         cliente,
@@ -581,8 +778,22 @@ app.post(
                         total
                     )
 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).run(
+                    VALUES
+                    (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        $6,
+                        $7,
+                        $8,
+                        $9,
+                        $10
+                    )
+
+                    RETURNING id
+                `, [
                     cliente,
                     telefone || "",
                     endereco || "",
@@ -590,16 +801,21 @@ app.post(
                     regiao || "",
                     taxa,
                     pagamento || "",
-                    Number(troco_para || 0),
+                    Number(
+                        troco_para || 0
+                    ),
                     subtotal,
                     total
-                );
+                ]);
 
             const pedidoId =
-                resultado.lastInsertRowid;
+                pedido.rows[0].id;
 
-            const inserirItem =
-                db.prepare(`
+            for (
+                const item of itens
+            ) {
+
+                await query(`
                     INSERT INTO itens_pedido
                     (
                         pedido_id,
@@ -609,24 +825,32 @@ app.post(
                         preco
                     )
 
-                    VALUES (?, ?, ?, ?, ?)
-                `);
-
-            for (const item of itens) {
-
-                inserirItem.run(
+                    VALUES
+                    (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5
+                    )
+                `, [
                     pedidoId,
                     item.produto_id || null,
                     item.nome_produto,
-                    Number(item.quantidade),
-                    Number(item.preco)
-                );
+                    Number(
+                        item.quantidade
+                    ),
+                    Number(
+                        item.preco
+                    )
+                ]);
 
             }
 
             res.json({
                 sucesso: true,
-                pedido_id: pedidoId,
+                pedido_id:
+                    pedidoId,
                 subtotal,
                 taxa,
                 total
@@ -637,7 +861,8 @@ app.post(
             console.error(erro);
 
             res.status(500).json({
-                erro: "Erro ao criar pedido"
+                erro:
+                    "Erro ao criar pedido"
             });
 
         }
@@ -645,42 +870,56 @@ app.post(
     }
 );
 
-// ==========================================
+// =====================================================
 // LISTAR PEDIDOS
-// ==========================================
+// =====================================================
 
 app.get(
     "/api/pedidos",
-    (req, res) => {
+    async (req, res) => {
 
         try {
 
-            const pedidos =
-                db.prepare(`
+            const resultado =
+                await query(`
                     SELECT *
                     FROM pedidos
                     ORDER BY id DESC
-                `).all();
+                `);
 
-            for (const pedido of pedidos) {
+            const pedidos =
+                resultado.rows;
 
-                pedido.itens =
-                    db.prepare(`
+            for (
+                const pedido of pedidos
+            ) {
+
+                const itens =
+                    await query(`
                         SELECT *
                         FROM itens_pedido
-                        WHERE pedido_id = ?
-                    `).all(pedido.id);
+                        WHERE pedido_id = $1
+                        ORDER BY id
+                    `, [
+                        pedido.id
+                    ]);
+
+                pedido.itens =
+                    itens.rows;
 
             }
 
-            res.json(pedidos);
+            res.json(
+                pedidos
+            );
 
         } catch (erro) {
 
             console.error(erro);
 
             res.status(500).json({
-                erro: "Erro ao buscar pedidos"
+                erro:
+                    "Erro ao buscar pedidos"
             });
 
         }
@@ -688,33 +927,53 @@ app.get(
     }
 );
 
-// ==========================================
-// ALTERAR STATUS DO PEDIDO
-// ==========================================
+// =====================================================
+// ALTERAR STATUS
+// =====================================================
 
 app.put(
     "/api/pedidos/:id/status",
-    (req, res) => {
+    async (req, res) => {
 
         try {
 
             const id =
-                Number(req.params.id);
+                Number(
+                    req.params.id
+                );
 
             const {
                 status
             } = req.body;
 
-            db.prepare(`
+            const statusPermitidos = [
+                "novo",
+                "preparando",
+                "concluido",
+                "cancelado"
+            ];
+
+            if (
+                !statusPermitidos.includes(
+                    status
+                )
+            ) {
+
+                return res.status(400).json({
+                    erro:
+                        "Status inválido"
+                });
+
+            }
+
+            await query(`
                 UPDATE pedidos
-
-                SET status = ?
-
-                WHERE id = ?
-            `).run(
+                SET status = $1
+                WHERE id = $2
+            `, [
                 status,
                 id
-            );
+            ]);
 
             res.json({
                 sucesso: true
@@ -725,7 +984,8 @@ app.put(
             console.error(erro);
 
             res.status(500).json({
-                erro: "Erro ao alterar status"
+                erro:
+                    "Erro ao alterar status"
             });
 
         }
@@ -733,90 +993,96 @@ app.put(
     }
 );
 
-// ==========================================
+// =====================================================
 // DASHBOARD
-// ==========================================
+// =====================================================
 
 app.get(
     "/api/dashboard",
-    (req, res) => {
+    async (req, res) => {
 
         try {
 
             const vendasHoje =
-                db.prepare(`
+                await query(`
                     SELECT
                         COALESCE(
                             SUM(total),
                             0
                         ) AS total
-
                     FROM pedidos
-
                     WHERE status = 'concluido'
-
-                    AND date(criado_em) =
-                        date('now', 'localtime')
-                `).get().total;
+                    AND criado_em::date =
+                        CURRENT_DATE
+                `);
 
             const vendasMes =
-                db.prepare(`
+                await query(`
                     SELECT
                         COALESCE(
                             SUM(total),
                             0
                         ) AS total
-
                     FROM pedidos
-
                     WHERE status = 'concluido'
-
-                    AND strftime(
-                        '%Y-%m',
-                        criado_em,
-                        'localtime'
-                    ) = strftime(
-                        '%Y-%m',
-                        'now',
-                        'localtime'
+                    AND DATE_TRUNC(
+                        'month',
+                        criado_em
+                    ) =
+                    DATE_TRUNC(
+                        'month',
+                        CURRENT_TIMESTAMP
                     )
-                `).get().total;
+                `);
 
             const pedidosHoje =
-                db.prepare(`
+                await query(`
                     SELECT
                         COUNT(*) AS total
-
                     FROM pedidos
-
-                    WHERE date(criado_em) =
-                        date('now', 'localtime')
-                `).get().total;
+                    WHERE criado_em::date =
+                        CURRENT_DATE
+                `);
 
             const tortasHoje =
-                db.prepare(`
+                await query(`
                     SELECT
                         COALESCE(
                             SUM(ip.quantidade),
                             0
                         ) AS total
-
                     FROM itens_pedido ip
-
                     INNER JOIN pedidos p
-                    ON p.id = ip.pedido_id
-
-                    WHERE p.status = 'concluido'
-
-                    AND date(p.criado_em) =
-                        date('now', 'localtime')
-                `).get().total;
+                        ON p.id =
+                           ip.pedido_id
+                    WHERE p.status =
+                        'concluido'
+                    AND p.criado_em::date =
+                        CURRENT_DATE
+                `);
 
             res.json({
-                vendasHoje,
-                vendasMes,
-                pedidosHoje,
-                tortasHoje
+
+                vendasHoje:
+                    Number(
+                        vendasHoje.rows[0].total
+                    ),
+
+                vendasMes:
+                    Number(
+                        vendasMes.rows[0].total
+                    ),
+
+                pedidosHoje:
+                    Number(
+                        pedidosHoje.rows[0].total
+                    ),
+
+                tortasHoje:
+                    Number(
+                        tortasHoje.rows[0].total
+                    )
+
             });
 
         } catch (erro) {
@@ -824,7 +1090,8 @@ app.get(
             console.error(erro);
 
             res.status(500).json({
-                erro: "Erro no dashboard"
+                erro:
+                    "Erro no dashboard"
             });
 
         }
@@ -832,37 +1099,74 @@ app.get(
     }
 );
 
-// ==========================================
-// ARQUIVOS DE UPLOAD
-// ==========================================
+// =====================================================
+// TRATAMENTO DE ERROS DO MULTER
+// =====================================================
 
 app.use(
-    "/uploads",
-    express.static(pastaUploads)
-);
+    (erro, req, res, next) => {
 
-// ==========================================
-// INICIAR SERVIDOR
-// ==========================================
+        if (
+            erro &&
+            erro.code ===
+            "LIMIT_FILE_SIZE"
+        ) {
 
-app.listen(
-    PORT,
-    () => {
+            return res.status(400).json({
+                erro:
+                    "A imagem deve ter no máximo 3 MB."
+            });
 
-        console.log("");
-        console.log(
-            "🍰 DOCEMANIA ONLINE"
-        );
+        }
 
-        console.log(
-            `Servidor rodando em:`
-        );
-
-        console.log(
-            `http://localhost:${PORT}`
-        );
-
-        console.log("");
+        next(erro);
 
     }
 );
+
+// =====================================================
+// INICIAR SERVIDOR
+// =====================================================
+
+async function iniciarServidor() {
+
+    try {
+
+        await inicializarBanco();
+
+        app.listen(
+            PORT,
+            () => {
+
+                console.log("");
+                console.log(
+                    "🍰 DOCEMANIA ONLINE"
+                );
+
+                console.log(
+                    `Servidor rodando na porta ${PORT}`
+                );
+
+                console.log("");
+
+            }
+        );
+
+    } catch (erro) {
+
+        console.error(
+            "❌ Erro ao iniciar servidor:"
+        );
+
+        console.error(
+            erro
+        );
+
+        process.exit(1);
+
+    }
+
+}
+
+iniciarServidor();
+```
