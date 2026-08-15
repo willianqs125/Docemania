@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Docemania | Doceria</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+
+<body>
+
+
+<!-- ==================================================
+     ÁREA DO CLIENTE
+================================================== -->
+
+<div id="clienteArea">
+
+
+    <!-- HEADER -->
+
+    <header class="header">
+
+        <div class="header-content">
+
+            <div class="logo">
+
+                <div class="logo-icon">
+                    🍰
+                </div>
+
+                <div>
+
+                    <h1>
+                        Docemania
+                    </h1>
+
+                    <span>
+                        Doces feitos com carinho
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="header-actions">
+
+                <button
+                    id="adminBtn"
+                    class="admin-header-btn"
+                    type="button"
+                >
+                    ⚙️ Admin
+                </button>
+
+
+                <button
+                    id="cartBtn"
+                    class="cart-button"
+                    type="button"
+                >
+
+                    🛒
+
+                    <span id="cartCount">
+                        0
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </header>
+
+
+
+    <!-- HERO -->
+
+    <section class="hero">
+
+        <div class="hero-content">
+
+            <span class="hero-small">
+                BEM-VINDO À DOCEMANIA
+            </span>
+
+            <h2>
+                Escolha seu doce favorito
+            </h2>
+
+            <p>
+                Tortas deliciosas preparadas
+                especialmente para você.
+            </p>
+
+            <button
+                class="hero-button"
+                onclick="document.getElementById('produtos').scrollIntoView({behavior:'smooth'})"
+            >
+                Ver nossas tortas
+            </button>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- PRODUTOS -->
+
+    <main
+        class="products-section"
+        id="produtos"
+    >
+
+        <div class="section-title">
+
+            <span>
+                NOSSO CARDÁPIO
+            </span>
+
+            <h2>
+                Tortas
+            </h2>
+
+            <p>
+                Escolha sua favorita
+            </p>
+
+        </div>
+
+
+        <div
+            id="listaProdutos"
+            class="products-grid"
+        ></div>
+
+    </main>
+
+
+
+    <!-- RODAPÉ -->
+
+    <footer class="footer">
+
+        <div>
+
+            <strong>
+                🍰 Docemania
+            </strong>
+
+            <p>
+                Doces feitos com carinho.
+            </p>
+
+        </div>
+
+        <p>
+            © 2026 Docemania
+        </p>
+
+    </footer>
+
+
+</div>
+
+
+
+<!-- ==================================================
+     MODAL DO PRODUTO
+================================================== -->
+
+<div
+    id="produtoModal"
+    class="modal hidden"
+>
+
+    <div class="modal-box product-modal">
+
+        <button
+            id="closeModal"
+            class="close-modal"
+            type="button"
+        >
+            ×
+        </button>
+
+
+        <img
+            id="modalImagem"
+            class="modal-product-image"
+            src=""
+            alt="Produto"
+        >
+
+
+        <div class="modal-product-content">
+
+            <span class="product-category">
+                TORTA
+            </span>
+
+            <h2 id="modalNome">
+                Torta
+            </h2>
+
+            <p id="modalDescricao">
+                Descrição
+            </p>
+
+
+            <div class="quantity-area">
+
+                <span>
+                    Quantidade
+                </span>
+
+                <div class="quantity">
+
+                    <button
+                        id="menos"
+                        type="button"
+                    >
+                        −
+                    </button>
+
+                    <strong id="quantidade">
+                        1
+                    </strong>
+
+                    <button
+                        id="mais"
+                        type="button"
+                    >
+                        +
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <label class="field-label">
+                Observação
+            </label>
+
+            <textarea
+                id="observacao"
+                placeholder="Ex.: escrever parabéns, retirar algum ingrediente..."
+            ></textarea>
+
+
+            <div class="modal-total">
+
+                <span>
+                    Total
+                </span>
+
+                <strong id="modalTotal">
+                    R$ 0,00
+                </strong>
+
+            </div>
+
+
+            <button
+                id="adicionarPedido"
+                class="primary-button"
+                type="button"
+            >
+                🛒 Adicionar ao pedido
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     CARRINHO
+================================================== -->
+
+<div
+    id="overlay"
+    class="overlay hidden"
+></div>
+
+
+<aside
+    id="cart"
+    class="cart"
+>
+
+    <div class="cart-header">
+
+        <div>
+
+            <span>
+                SEU PEDIDO
+            </span>
+
+            <h2>
+                Carrinho
+            </h2>
+
+        </div>
+
+
+        <button
+            id="closeCart"
+            class="close-cart"
+            type="button"
+        >
+            ×
+        </button>
+
+    </div>
+
+
+    <div
+        id="cartItems"
+        class="cart-items"
+    ></div>
+
+
+    <div class="cart-footer">
+
+        <div class="cart-total-row">
+
+            <span>
+                Total
+            </span>
+
+            <strong id="cartTotal">
+                R$ 0,00
+            </strong>
+
+        </div>
+
+
+        <button
+            id="finalizarBtn"
+            class="primary-button"
+            type="button"
+        >
+            Finalizar pedido
+        </button>
+
+    </div>
+
+</aside>
+
+
+
+<!-- ==================================================
+     CHECKOUT
+================================================== -->
+
+<div
+    id="checkoutModal"
+    class="modal hidden"
+>
+
+    <div class="modal-box checkout-box">
+
+        <button
+            id="closeCheckout"
+            class="close-modal"
+            type="button"
+        >
+            ×
+        </button>
+
+
+        <div class="checkout-header">
+
+            <span>
+                FINALIZAR PEDIDO
+            </span>
+
+            <h2>
+                Seus dados
+            </h2>
+
+        </div>
+
+
+        <!-- NOME -->
+
+        <div class="field">
+
+            <label for="clienteNome">
+                Seu nome
+            </label>
+
+            <input
+                id="clienteNome"
+                type="text"
+                placeholder="Digite seu nome"
+            >
+
+        </div>
+
+
+        <!-- ENTREGA -->
+
+        <div class="field">
+
+            <label>
+                Como deseja receber?
+            </label>
+
+
+            <div class="delivery-options">
+
+                <button
+                    type="button"
+                    class="delivery active"
+                    data-type="entrega"
+                >
+
+                    🚚
+
+                    <strong>
+                        Entrega
+                    </strong>
+
+                    <span>
+                        Receber em casa
+                    </span>
+
+                </button>
+
+
+                <button
+                    type="button"
+                    class="delivery"
+                    data-type="retirada"
+                >
+
+                    🛍️
+
+                    <strong>
+                        Vou buscar
+                    </strong>
+
+                    <span>
+                        Retirar na loja
+                    </span>
+
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- ENDEREÇO -->
+
+        <div
+            id="enderecoArea"
+            class="field"
+        >
+
+            <label for="endereco">
+                Endereço
+            </label>
+
+            <textarea
+                id="endereco"
+                placeholder="Rua, número, bairro e ponto de referência"
+            ></textarea>
+
+        </div>
+
+
+        <!-- PAGAMENTO -->
+
+        <div class="field">
+
+            <label for="pagamento">
+                Forma de pagamento
+            </label>
+
+            <select id="pagamento">
+
+                <option value="">
+                    Selecione
+                </option>
+
+                <option value="Pix">
+                    Pix
+                </option>
+
+                <option value="Dinheiro">
+                    Dinheiro
+                </option>
+
+                <option value="Cartão">
+                    Cartão
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- TROCO -->
+
+        <div
+            id="trocoArea"
+            class="field hidden"
+        >
+
+            <label for="valorPago">
+                Troco para quanto?
+            </label>
+
+            <input
+                id="valorPago"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ex.: 100"
+            >
+
+            <small id="trocoTexto">
+                Troco: R$ 0,00
+            </small>
+
+        </div>
+
+
+        <!-- TOTAL -->
+
+        <div class="checkout-total">
+
+            <span>
+                Total do pedido
+            </span>
+
+            <strong id="checkoutTotal">
+                R$ 0,00
+            </strong>
+
+        </div>
+
+
+        <button
+            id="enviarPedido"
+            class="whatsapp-button"
+            type="button"
+        >
+            📲 Enviar pedido pelo WhatsApp
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     LOGIN ADMIN
+================================================== -->
+
+<div
+    id="loginModal"
+    class="modal hidden"
+>
+
+    <div class="modal-box login-box">
+
+        <button
+            id="closeLogin"
+            class="close-modal"
+            type="button"
+        >
+            ×
+        </button>
+
+
+        <div class="login-icon">
+            🔐
+        </div>
+
+
+        <span class="admin-label">
+            ÁREA RESTRITA
+        </span>
+
+
+        <h2>
+            Painel Administrativo
+        </h2>
+
+
+        <p>
+            Acesso exclusivo para a equipe Docemania.
+        </p>
+
+
+        <div class="field">
+
+            <label for="adminUser">
+                Usuário
+            </label>
+
+            <input
+                id="adminUser"
+                type="text"
+                placeholder="Usuário"
+            >
+
+        </div>
+
+
+        <div class="field">
+
+            <label for="adminPassword">
+                Senha
+            </label>
+
+            <input
+                id="adminPassword"
+                type="password"
+                placeholder="Senha"
+            >
+
+        </div>
+
+
+        <button
+            id="loginBtn"
+            class="primary-button"
+            type="button"
+        >
+            Entrar no painel
+        </button>
+
+
+        <small class="prototype-warning">
+            Protótipo — usuário: admin / senha: 1234
+        </small>
+
+    </div>
+
+</div>
+
+
+
+<!-- ==================================================
+     ÁREA ADMINISTRATIVA
+================================================== -->
+
+<div
+    id="adminArea"
+    class="admin-area hidden"
+>
+
+
+    <header class="admin-header">
+
+        <div class="admin-header-content">
+
+            <div class="logo">
+
+                <div class="logo-icon">
+                    🍰
+                </div>
+
+                <div>
+
+                    <h1>
+                        Docemania
+                    </h1>
+
+                    <span>
+                        Painel Administrativo
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <button
+                id="logoutBtn"
+                class="logout-button"
+                type="button"
+            >
+                Sair
+            </button>
+
+        </div>
+
+    </header>
+
+
+
+    <main class="admin-main">
+
+
+        <div class="admin-welcome">
+
+            <div>
+
+                <span>
+                    ADMINISTRAÇÃO
+                </span>
+
+                <h2>
+                    Gerenciar produtos
+                </h2>
+
+                <p>
+                    Adicione, edite ou remova as tortas da Docemania.
+                </p>
+
+            </div>
+
+
+            <button
+                id="addProductBtn"
+                class="primary-button add-button"
+                type="button"
+            >
+                + Nova torta
+            </button>
+
+        </div>
+
+
+
+        <!-- ESTATÍSTICAS -->
+
+        <div class="admin-stats">
+
+            <div class="stat-card">
+
+                <span>
+                    🍰
+                </span>
+
+                <div>
+
+                    <small>
+                        Produtos
+                    </small>
+
+                    <strong id="adminTotalProdutos">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <span>
+                    🛒
+                </span>
+
+                <div>
+
+                    <small>
+                        Sistema
+                    </small>
+
+                    <strong>
+                        Online
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- LISTA ADMIN -->
+
+        <section>
+
+            <div class="admin-section-title">
+
+                <div>
+
+                    <span>
+                        CARDÁPIO
+                    </span>
+
+                    <h2>
+                        Suas tortas
+                    </h2>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="adminProducts"
+                class="admin-products"
+            ></div>
+
+        </section>
+
+
+    </main>
+
+</div>
+
+
+
+<!-- ==================================================
+     MODAL NOVO PRODUTO
+================================================== -->
+
+<div
+    id="adminProductModal"
+    class="modal hidden"
+>
+
+    <div class="modal-box admin-product-modal">
+
+        <button
+            id="closeAdminProduct"
+            class="close-modal"
+            type="button"
+        >
+            ×
+        </button>
+
+
+        <div class="checkout-header">
+
+            <span>
+                CARDÁPIO
+            </span>
+
+            <h2 id="adminProductTitle">
+                Nova torta
+            </h2>
+
+        </div>
+
+
+        <!-- NOME -->
+
+        <div class="field">
+
+            <label for="productName">
+                Nome da torta
+            </label>
+
+            <input
+                id="productName"
+                type="text"
+                placeholder="Ex.: Torta de Morango"
+            >
+
+        </div>
+
+
+        <!-- PREÇO -->
+
+        <div class="field">
+
+            <label for="productPrice">
+                Preço
+            </label>
+
+            <input
+                id="productPrice"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ex.: 45.00"
+            >
+
+        </div>
+
+
+        <!-- DESCRIÇÃO -->
+
+        <div class="field">
+
+            <label for="productDescription">
+                Descrição
+            </label>
+
+            <textarea
+                id="productDescription"
+                placeholder="Descreva a torta..."
+            ></textarea>
+
+        </div>
+
+
+        <!-- IMAGEM -->
+
+        <div class="field">
+
+            <label for="productImageFile">
+                Imagem da torta
+            </label>
+
+
+            <div class="upload-box">
+
+                <input
+                    id="productImageFile"
+                    type="file"
+                    accept="image/*"
+                >
+
+
+                <label
+                    for="productImageFile"
+                    class="upload-label"
+                >
+
+                    📷
+
+                    <strong>
+                        Escolher imagem
+                    </strong>
+
+                    <span>
+                        Clique para selecionar uma foto do computador
+                    </span>
+
+                </label>
+
+            </div>
+
+
+            <!-- PRÉVIA -->
+
+            <div
+                id="imagePreviewContainer"
+                class="image-preview-container hidden"
+            >
+
+                <img
+                    id="imagePreview"
+                    class="image-preview"
+                    src=""
+                    alt="Prévia da imagem"
+                >
+
+
+                <button
+                    type="button"
+                    id="removeImage"
+                    class="remove-image"
+                >
+                    🗑️ Remover imagem
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <button
+            id="saveProduct"
+            class="primary-button"
+            type="button"
+        >
+            💾 Salvar produto
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<script src="script.js"></script>
+
+</body>
+
+</html>
