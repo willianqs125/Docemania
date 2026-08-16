@@ -1,0 +1,1 @@
+trigger: deploy $（date -u +%Y%m%d%H%M%S)
