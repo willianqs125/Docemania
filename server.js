@@ -931,7 +931,7 @@ app.post(
 
                     "Max-Age=28800",
 
-                    "SameSite=Lax",
+                    "SameSite=None",
 
                     producao
                         ? "Secure"
