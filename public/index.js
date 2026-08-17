@@ -1,4 +1,4 @@
-const API = "https:/docemania.onrender.com/api";
+const API = "https://docemania.onrender.com/api";
 
 /* =========================================================
    ESTADO
