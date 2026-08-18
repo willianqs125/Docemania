@@ -5216,12 +5216,6 @@ async function iniciarServidor() {
         );
 
 
-        await inicializarBanco();
-
-
-        await verificarBucket();
-
-
         servidorHttp = app.listen(
             PORT,
             "0.0.0.0",
@@ -5270,6 +5264,25 @@ async function iniciarServidor() {
         );
 
 
+        try {
+
+            await inicializarBanco();
+
+            await verificarBucket();
+
+            console.log(
+                "Inicialização do banco e do Supabase concluída."
+            );
+
+        } catch (erro) {
+
+            console.error(
+                "Falha ao inicializar banco/Supabase; servidor mantido online:",
+                erro
+            );
+        }
+
+
     } catch (erro) {
 
         console.error(
@@ -5288,7 +5301,10 @@ async function iniciarServidor() {
             "========================================"
         );
 
-        process.exit(1);
+        console.error(
+            "O servidor não conseguiu iniciar:",
+            erro.message || erro
+        );
     }
 }
 
