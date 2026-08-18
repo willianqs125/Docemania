@@ -1,6 +1,7 @@
 /* =========================================================
    DOCEMANIA
    SERVER.JS COMPLETO
+   VERSÃO CORRIGIDA
 ========================================================= */
 
 require("dotenv").config();
@@ -41,6 +42,9 @@ const ADMIN_PASSWORD =
 
 const SESSION_SECRET =
     process.env.SESSION_SECRET;
+
+const SUPABASE_BUCKET =
+    process.env.SUPABASE_BUCKET || "produto";
 
 
 /* =========================================================
@@ -120,6 +124,74 @@ app.use(
 
 
 /* =========================================================
+   MULTER
+========================================================= */
+
+/*
+   A imagem fica temporariamente na memória.
+
+   Depois ela é enviada diretamente
+   para o Supabase Storage.
+*/
+
+const storage =
+    multer.memoryStorage();
+
+
+const upload =
+    multer({
+
+        storage,
+
+        limits: {
+
+            fileSize:
+                3 * 1024 * 1024
+
+        },
+
+        fileFilter:
+            function (
+                req,
+                file,
+                callback
+            ) {
+
+                const tiposPermitidos = [
+
+                    "image/jpeg",
+
+                    "image/jpg",
+
+                    "image/png",
+
+                    "image/webp"
+
+                ];
+
+                if (
+                    !tiposPermitidos.includes(
+                        file.mimetype
+                    )
+                ) {
+
+                    return callback(
+                        new Error(
+                            "Tipo de imagem não permitido."
+                        )
+                    );
+                }
+
+                callback(
+                    null,
+                    true
+                );
+            }
+
+    });
+
+
+/* =========================================================
    POSTGRESQL
 ========================================================= */
 
@@ -174,67 +246,88 @@ const supabase =
     );
 
 
-/* Nome do bucket de imagens (configurável por variável de ambiente) */
-
-const SUPABASE_BUCKET =
-    process.env.SUPABASE_BUCKET ||
-    "produto";
-
-
-/* Verifica, no boot, se o bucket existe de verdade.
-   Se o bucket não existir (ou o nome estiver com outra grafia),
-   o upload falha e o produto não salva. */
+/* =========================================================
+   VERIFICAR BUCKET
+========================================================= */
 
 async function verificarBucket() {
 
     try {
 
-        const { data, error } =
+        console.log(
+            "Verificando bucket do Supabase..."
+        );
+
+        console.log(
+            `Bucket configurado: "${SUPABASE_BUCKET}"`
+        );
+
+
+        const {
+            data,
+            error
+        } =
             await supabase
                 .storage
                 .listBuckets();
 
+
         if (error) {
 
             console.error(
-                "Não foi possível listar buckets do Supabase:",
+                "Não foi possível listar os buckets do Supabase:"
+            );
+
+            console.error(
                 error.message
             );
 
             console.error(
-                "Provável causa: SUPABASE_KEY sem permissão. Use a chave service_role no servidor."
+                "Verifique se SUPABASE_KEY possui permissão adequada."
             );
 
             return;
         }
 
+
         const nomes =
             (data || []).map(
-                function (b) {
-                    return b.name;
+                function (
+                    bucket
+                ) {
+
+                    return bucket.name;
+
                 }
             );
 
-        if (!nomes.includes(SUPABASE_BUCKET)) {
+
+        if (
+            !nomes.includes(
+                SUPABASE_BUCKET
+            )
+        ) {
 
             console.error(
-                `ATENÇÃO: o bucket "${SUPABASE_BUCKET}" não existe no Supabase.`
+                `ATENÇÃO: o bucket "${SUPABASE_BUCKET}" não foi encontrado.`
             );
 
             console.error(
-                "Buckets disponíveis:",
-                nomes.join(", ") || "(nenhum)"
+                "Buckets encontrados:",
+                nomes.join(", ") ||
+                "(nenhum)"
             );
 
             console.error(
-                "Crie o bucket (público) ou defina SUPABASE_BUCKET com o nome correto."
+                `Crie no Supabase Storage um bucket chamado "${SUPABASE_BUCKET}".`
             );
 
         } else {
 
             console.log(
-                `Bucket de imagens OK: "${SUPABASE_BUCKET}"`
+                `Bucket "${SUPABASE_BUCKET}" encontrado com sucesso.`
             );
+
         }
 
     } catch (erro) {
@@ -248,59 +341,273 @@ async function verificarBucket() {
 
 
 /* =========================================================
-   UPLOAD DE IMAGENS
+   UPLOAD DE IMAGEM PARA SUPABASE
 ========================================================= */
 
-const upload =
-    multer({
+async function enviarImagemParaSupabase(
+    arquivo
+) {
 
-        storage:
-            multer.memoryStorage(),
+    if (!arquivo) {
 
-        limits: {
+        return null;
+    }
 
-            fileSize:
-                3 * 1024 * 1024
 
-        },
+    console.log(
+        "========================================"
+    );
 
-        fileFilter:
-            function (
-                req,
-                file,
-                callback
-            ) {
+    console.log(
+        "UPLOAD DE IMAGEM"
+    );
 
-                const tiposPermitidos = [
+    console.log(
+        "Arquivo:",
+        arquivo.originalname
+    );
 
-                    "image/jpeg",
+    console.log(
+        "MIME:",
+        arquivo.mimetype
+    );
 
-                    "image/png",
+    console.log(
+        "Tamanho:",
+        arquivo.size
+    );
 
-                    "image/webp"
+    console.log(
+        "Bucket:",
+        SUPABASE_BUCKET
+    );
 
-                ];
+    console.log(
+        "========================================"
+    );
 
-                if (
-                    !tiposPermitidos.includes(
-                        file.mimetype
-                    )
-                ) {
 
-                    return callback(
-                        new Error(
-                            "Tipo de imagem não permitido."
-                        )
-                    );
-                }
+    try {
 
-                callback(
-                    null,
-                    true
+        /* =================================================
+           EXTENSÃO
+        ================================================= */
+
+        let extensao =
+            path
+                .extname(
+                    arquivo.originalname
+                )
+                .toLowerCase();
+
+
+        if (
+            extensao === ".jpe"
+        ) {
+
+            extensao = ".jpeg";
+        }
+
+
+        const extensoesPermitidas = [
+
+            ".jpg",
+
+            ".jpeg",
+
+            ".png",
+
+            ".webp"
+
+        ];
+
+
+        if (
+            !extensoesPermitidas.includes(
+                extensao
+            )
+        ) {
+
+            throw new Error(
+                "Formato de imagem não permitido."
+            );
+        }
+
+
+        /* =================================================
+           MIME TYPE
+        ================================================= */
+
+        const mimesPermitidos = [
+
+            "image/jpeg",
+
+            "image/jpg",
+
+            "image/png",
+
+            "image/webp"
+
+        ];
+
+
+        if (
+            !mimesPermitidos.includes(
+                arquivo.mimetype
+            )
+        ) {
+
+            throw new Error(
+                "Tipo de imagem não permitido."
+            );
+        }
+
+
+        /* =================================================
+           NOME ÚNICO
+        ================================================= */
+
+        const nomeArquivo =
+            `produto-${Date.now()}-${crypto
+                .randomBytes(8)
+                .toString("hex")}${extensao}`;
+
+
+        /*
+           IMPORTANTE:
+
+           Não coloque "/" no início.
+
+           ERRADO:
+           /produto-123.jpg
+
+           CORRETO:
+           produto-123.jpg
+        */
+
+        const caminho =
+            nomeArquivo;
+
+
+        console.log(
+            "Caminho do arquivo:",
+            caminho
+        );
+
+
+        /* =================================================
+           UPLOAD
+        ================================================= */
+
+        const resultado =
+            await supabase
+                .storage
+                .from(
+                    SUPABASE_BUCKET
+                )
+                .upload(
+                    caminho,
+                    arquivo.buffer,
+                    {
+
+                        contentType:
+                            arquivo.mimetype,
+
+                        cacheControl:
+                            "3600",
+
+                        upsert:
+                            false
+
+                    }
                 );
-            }
 
-    });
+
+        if (
+            resultado.error
+        ) {
+
+            console.error(
+                "ERRO DO SUPABASE STORAGE:"
+            );
+
+            console.error(
+                resultado.error
+            );
+
+            throw new Error(
+                resultado.error.message ||
+                "Erro desconhecido no Supabase Storage."
+            );
+        }
+
+
+        console.log(
+            "Imagem enviada com sucesso."
+        );
+
+        console.log(
+            resultado.data
+        );
+
+
+        /* =================================================
+           URL PÚBLICA
+        ================================================= */
+
+        const resultadoUrl =
+            supabase
+                .storage
+                .from(
+                    SUPABASE_BUCKET
+                )
+                .getPublicUrl(
+                    caminho
+                );
+
+
+        if (
+            !resultadoUrl ||
+            !resultadoUrl.data ||
+            !resultadoUrl.data.publicUrl
+        ) {
+
+            throw new Error(
+                "Não foi possível gerar a URL pública da imagem."
+            );
+        }
+
+
+        const imagemUrl =
+            resultadoUrl
+                .data
+                .publicUrl;
+
+
+        console.log(
+            "URL pública:",
+            imagemUrl
+        );
+
+
+        return imagemUrl;
+
+
+    } catch (erro) {
+
+        console.error(
+            "Erro ao enviar imagem para Supabase:"
+        );
+
+        console.error(
+            erro
+        );
+
+        throw new Error(
+            `Falha ao enviar a imagem para o bucket "${SUPABASE_BUCKET}": ${erro.message}`
+        );
+    }
+}
 
 
 /* =========================================================
@@ -309,6 +616,7 @@ const upload =
 
 const COOKIE_NAME =
     "docemania_session";
+
 
 const SESSION_DURATION =
     1000 *
@@ -321,20 +629,25 @@ const SESSION_DURATION =
    LEITURA DE COOKIES
 ========================================================= */
 
-function lerCookies(req) {
+function lerCookies(
+    req
+) {
 
     const cookies = {};
 
     const header =
         req.headers.cookie;
 
+
     if (!header) {
 
         return cookies;
     }
 
+
     const partes =
         header.split(";");
+
 
     for (
         const parte
@@ -344,12 +657,14 @@ function lerCookies(req) {
         const indice =
             parte.indexOf("=");
 
+
         if (
             indice === -1
         ) {
 
             continue;
         }
+
 
         const nome =
             parte
@@ -359,12 +674,14 @@ function lerCookies(req) {
                 )
                 .trim();
 
+
         const valor =
             parte
                 .slice(
                     indice + 1
                 )
                 .trim();
+
 
         try {
 
@@ -377,15 +694,17 @@ function lerCookies(req) {
 
             cookies[nome] =
                 valor;
+
         }
     }
+
 
     return cookies;
 }
 
 
 /* =========================================================
-   CRIAR TOKEN DE SESSÃO
+   CRIAR TOKEN
 ========================================================= */
 
 function criarTokenSessao(
@@ -407,6 +726,7 @@ function criarTokenSessao(
 
     };
 
+
     const dados =
         Buffer
             .from(
@@ -417,6 +737,7 @@ function criarTokenSessao(
             .toString(
                 "base64url"
             );
+
 
     const assinatura =
         crypto
@@ -430,6 +751,7 @@ function criarTokenSessao(
             .digest(
                 "base64url"
             );
+
 
     return (
         dados +
@@ -454,8 +776,10 @@ function verificarTokenSessao(
             return null;
         }
 
+
         const partes =
             token.split(".");
+
 
         if (
             partes.length !== 2
@@ -464,11 +788,14 @@ function verificarTokenSessao(
             return null;
         }
 
+
         const dados =
             partes[0];
 
+
         const assinaturaRecebida =
             partes[1];
+
 
         const assinaturaEsperada =
             crypto
@@ -483,15 +810,18 @@ function verificarTokenSessao(
                     "base64url"
                 );
 
+
         const recebido =
             Buffer.from(
                 assinaturaRecebida
             );
 
+
         const esperado =
             Buffer.from(
                 assinaturaEsperada
             );
+
 
         if (
             recebido.length !==
@@ -500,6 +830,7 @@ function verificarTokenSessao(
 
             return null;
         }
+
 
         if (
             !crypto.timingSafeEqual(
@@ -510,6 +841,7 @@ function verificarTokenSessao(
 
             return null;
         }
+
 
         const payload =
             JSON.parse(
@@ -523,12 +855,14 @@ function verificarTokenSessao(
                     )
             );
 
+
         if (
             !payload.exp
         ) {
 
             return null;
         }
+
 
         if (
             Date.now() >
@@ -538,7 +872,9 @@ function verificarTokenSessao(
             return null;
         }
 
+
         return payload;
+
 
     } catch {
 
@@ -548,7 +884,7 @@ function verificarTokenSessao(
 
 
 /* =========================================================
-   MIDDLEWARE DE LOGIN
+   MIDDLEWARE LOGIN
 ========================================================= */
 
 function exigirLogin(
@@ -562,15 +898,18 @@ function exigirLogin(
             req
         );
 
+
     const token =
         cookies[
             COOKIE_NAME
         ];
 
+
     const sessao =
         verificarTokenSessao(
             token
         );
+
 
     if (!sessao) {
 
@@ -586,8 +925,10 @@ function exigirLogin(
             });
     }
 
+
     req.usuario =
         sessao;
+
 
     next();
 }
@@ -598,6 +939,80 @@ function exigirLogin(
 ========================================================= */
 
 async function inicializarBanco() {
+
+    /*
+       Compatibilidade com uma possível tabela antiga
+       chamada "produto".
+    */
+
+    try {
+
+        const tabelaAntiga =
+            await query(`
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    AND table_name = 'produto'
+                ) AS existe
+            `);
+
+
+        const tabelaNova =
+            await query(`
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                    AND table_name = 'produtos'
+                ) AS existe
+            `);
+
+
+        const existeProduto =
+            tabelaAntiga
+                .rows[0]
+                .existe;
+
+
+        const existeProdutos =
+            tabelaNova
+                .rows[0]
+                .existe;
+
+
+        if (
+            existeProduto &&
+            !existeProdutos
+        ) {
+
+            console.log(
+                "Tabela antiga 'produto' encontrada."
+            );
+
+            console.log(
+                "Renomeando para 'produtos'..."
+            );
+
+
+            await query(`
+                ALTER TABLE produto
+                RENAME TO produtos
+            `);
+
+
+            console.log(
+                "Tabela renomeada com sucesso."
+            );
+        }
+
+    } catch (erro) {
+
+        console.error(
+            "Erro ao verificar/migrar tabela de produtos:",
+            erro
+        );
+    }
 
 
     /* =====================================================
@@ -741,17 +1156,32 @@ async function inicializarBanco() {
         ADD COLUMN IF NOT EXISTS categoria TEXT
     `);
 
+
+    await query(`
+        ALTER TABLE produtos
+        ADD COLUMN IF NOT EXISTS descricao TEXT
+    `);
+
+
+    await query(`
+        ALTER TABLE produtos
+        ADD COLUMN IF NOT EXISTS imagem TEXT
+    `);
+
+
     await query(`
         ALTER TABLE produtos
         ADD COLUMN IF NOT EXISTS ativo INTEGER
         DEFAULT 1
     `);
 
+
     await query(`
         ALTER TABLE produtos
         ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ
         DEFAULT NOW()
     `);
+
 
     await query(`
         ALTER TABLE pedidos
@@ -759,26 +1189,31 @@ async function inicializarBanco() {
         DEFAULT 'novo'
     `);
 
+
     await query(`
         ALTER TABLE pedidos
         ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ
         DEFAULT NOW()
     `);
 
+
     await query(`
         ALTER TABLE pedidos
         ADD COLUMN IF NOT EXISTS telefone TEXT
     `);
+
 
     await query(`
         ALTER TABLE pedidos
         ADD COLUMN IF NOT EXISTS endereco TEXT
     `);
 
+
     await query(`
         ALTER TABLE pedidos
         ADD COLUMN IF NOT EXISTS regiao TEXT
     `);
+
 
     await query(`
         ALTER TABLE pedidos
@@ -786,10 +1221,12 @@ async function inicializarBanco() {
         DEFAULT 0
     `);
 
+
     await query(`
         ALTER TABLE pedidos
         ADD COLUMN IF NOT EXISTS pagamento TEXT
     `);
+
 
     await query(`
         ALTER TABLE pedidos
@@ -799,7 +1236,7 @@ async function inicializarBanco() {
 
 
     /* =====================================================
-       CRIAR / ATUALIZAR ADMIN
+       ADMIN
     ===================================================== */
 
     const senhaHash =
@@ -807,6 +1244,7 @@ async function inicializarBanco() {
             ADMIN_PASSWORD,
             12
         );
+
 
     const admin =
         await query(
@@ -823,6 +1261,7 @@ async function inicializarBanco() {
                 ADMIN_USER
             ]
         );
+
 
     if (
         admin.rows.length === 0
@@ -848,6 +1287,7 @@ async function inicializarBanco() {
             ]
         );
 
+
         console.log(
             "Administrador criado."
         );
@@ -868,6 +1308,7 @@ async function inicializarBanco() {
             ]
         );
 
+
         console.log(
             "Senha do administrador sincronizada."
         );
@@ -886,6 +1327,7 @@ async function inicializarBanco() {
             FROM regioes
             `
         );
+
 
     if (
         Number(
@@ -932,6 +1374,7 @@ async function inicializarBanco() {
         );
     }
 
+
     console.log(
         "Banco PostgreSQL inicializado."
     );
@@ -960,7 +1403,7 @@ app.get(
 
 
 /* =========================================================
-   TESTE DO SERVIDOR
+   TESTE
 ========================================================= */
 
 app.get(
@@ -976,6 +1419,7 @@ app.get(
                 "SELECT NOW()"
             );
 
+
             res.json({
 
                 sucesso: true,
@@ -985,11 +1429,13 @@ app.get(
 
             });
 
+
         } catch (erro) {
 
             console.error(
                 erro
             );
+
 
             res
                 .status(500)
@@ -1027,6 +1473,7 @@ app.post(
 
                     : "";
 
+
             const senha =
                 typeof req.body.senha ===
                 "string"
@@ -1034,6 +1481,7 @@ app.post(
                     ? req.body.senha
 
                     : "";
+
 
             if (
                 !usuario ||
@@ -1051,6 +1499,7 @@ app.post(
 
                     });
             }
+
 
             const resultado =
                 await query(
@@ -1071,6 +1520,7 @@ app.post(
                     ]
                 );
 
+
             if (
                 resultado.rows.length === 0
             ) {
@@ -1087,14 +1537,17 @@ app.post(
                     });
             }
 
+
             const administrador =
                 resultado.rows[0];
+
 
             const senhaCorreta =
                 await bcrypt.compare(
                     senha,
                     administrador.senha
                 );
+
 
             if (!senhaCorreta) {
 
@@ -1110,15 +1563,18 @@ app.post(
                     });
             }
 
+
             const token =
                 criarTokenSessao(
                     administrador.id,
                     administrador.usuario
                 );
 
+
             const producao =
                 process.env.NODE_ENV ===
                 "production";
+
 
             const cookie =
                 [
@@ -1145,10 +1601,12 @@ app.post(
 
                 .join("; ");
 
+
             res.setHeader(
                 "Set-Cookie",
                 cookie
             );
+
 
             res.json({
 
@@ -1159,12 +1617,14 @@ app.post(
 
             });
 
+
         } catch (erro) {
 
             console.error(
                 "Erro no login:",
                 erro
             );
+
 
             res
                 .status(500)
@@ -1220,6 +1680,7 @@ app.post(
             process.env.NODE_ENV ===
             "production";
 
+
         const cookie =
             [
 
@@ -1245,10 +1706,12 @@ app.post(
 
             .join("; ");
 
+
         res.setHeader(
             "Set-Cookie",
             cookie
         );
+
 
         res.json({
 
@@ -1301,9 +1764,11 @@ app.get(
                     `
                 );
 
+
             res.json(
                 resultado.rows
             );
+
 
         } catch (erro) {
 
@@ -1311,6 +1776,7 @@ app.get(
                 "Erro ao buscar produtos:",
                 erro
             );
+
 
             res
                 .status(500)
@@ -1332,7 +1798,7 @@ app.get(
 ========================================================= */
 
 app.get(
-    "/api/admin/produtos",
+    "/api/admin/produto",
     exigirLogin,
     async function (
         req,
@@ -1368,9 +1834,11 @@ app.get(
                     `
                 );
 
+
             res.json(
                 resultado.rows
             );
+
 
         } catch (erro) {
 
@@ -1378,6 +1846,7 @@ app.get(
                 "Erro ao buscar produtos administrativos:",
                 erro
             );
+
 
             res
                 .status(500)
@@ -1393,142 +1862,11 @@ app.get(
 
 
 /* =========================================================
-   UPLOAD DE IMAGENS - SUPABASE STORAGE
-========================================================= */
-
-async function enviarImagemParaSupabase(
-    arquivo
-) {
-
-    if (!arquivo) {
-
-        return null;
-    }
-
-
-    const extensao =
-        path
-            .extname(
-                arquivo.originalname
-            )
-            .toLowerCase();
-
-
-    const extensoesPermitidas = [
-
-        ".jpg",
-
-        ".jpeg",
-
-        ".png",
-
-        ".webp"
-
-    ];
-
-
-    if (
-        !extensoesPermitidas.includes(
-            extensao
-        )
-    ) {
-
-        throw new Error(
-            "Formato de imagem não permitido."
-        );
-    }
-
-
-    const nomeArquivo =
-        `produto-${Date.now()}-${crypto
-            .randomBytes(8)
-            .toString("hex")}${extensao}`;
-
-
-    const caminho =
-        nomeArquivo;
-
-
-    console.log(
-        "Enviando imagem para Supabase:",
-        caminho
-    );
-
-
-    const resultado =
-        await supabase.storage
-            .from(SUPABASE_BUCKET)
-            .upload(
-                caminho,
-                arquivo.buffer,
-                {
-
-                    contentType:
-                        arquivo.mimetype,
-
-                    cacheControl:
-                        "3600",
-
-                    upsert:
-                        false
-
-                }
-            );
-
-
-    if (resultado.error) {
-
-        console.error(
-            "Erro do Supabase Storage:",
-            resultado.error
-        );
-
-        const detalhe =
-            resultado.error.message ||
-            "erro desconhecido";
-
-        throw new Error(
-            `Falha ao enviar a imagem para o bucket "${SUPABASE_BUCKET}": ${detalhe}`
-        );
-    }
-
-
-    const url =
-        supabase.storage
-            .from(SUPABASE_BUCKET)
-            .getPublicUrl(
-                caminho
-            );
-
-
-    if (
-        !url ||
-        !url.data ||
-        !url.data.publicUrl
-    ) {
-
-        throw new Error(
-            "Não foi possível gerar a URL pública da imagem."
-        );
-    }
-
-
-    console.log(
-        "Imagem enviada com sucesso:",
-        url.data.publicUrl
-    );
-
-
-    return url.data.publicUrl;
-}
-
-
-/* =========================================================
-   CRIAR PRODUTO - ADMIN
+   CRIAR PRODUTO
 ========================================================= */
 
 app.post(
-    "/api/produtos",
+    "/api/produto",
     exigirLogin,
     upload.single("imagem"),
     async function (
@@ -1539,13 +1877,29 @@ app.post(
         try {
 
             console.log(
-                "POST /api/produtos recebido."
+                "POST /api/produto recebido."
             );
 
+
             console.log(
-                "Dados recebidos:",
+                "Dados:",
                 req.body
             );
+
+
+            if (req.file) {
+
+                console.log(
+                    "Imagem recebida:",
+                    req.file.originalname
+                );
+
+            } else {
+
+                console.log(
+                    "Nenhuma imagem enviada."
+                );
+            }
 
 
             const nome =
@@ -1636,7 +1990,7 @@ app.post(
 
 
             /* =================================================
-               INSERIR PRODUTO
+               BANCO
             ================================================= */
 
             const resultado =
@@ -1690,10 +2044,6 @@ app.post(
             );
 
 
-            /* =================================================
-               RESPOSTA
-            ================================================= */
-
             return res
                 .status(201)
                 .json({
@@ -1721,7 +2071,8 @@ app.post(
                     sucesso: false,
 
                     erro:
-                        erro && erro.message
+                        erro &&
+                        erro.message
                             ? erro.message
                             : "Erro ao criar produto."
 
@@ -1736,7 +2087,7 @@ app.post(
 ========================================================= */
 
 app.put(
-    "/api/produtos/:id",
+    "/api/produto/:id",
     exigirLogin,
     upload.single("imagem"),
     async function (
@@ -1975,6 +2326,7 @@ app.put(
                 .json({
 
                     erro:
+                        erro.message ||
                         "Erro ao atualizar produto."
 
                 });
@@ -1988,7 +2340,7 @@ app.put(
 ========================================================= */
 
 app.put(
-    "/api/produtos/:id/status",
+    "/api/produto/:id/status",
     exigirLogin,
     async function (
         req,
@@ -2075,7 +2427,7 @@ app.put(
         } catch (erro) {
 
             console.error(
-                "Erro ao alterar status do produto:",
+                "Erro ao alterar status:",
                 erro
             );
 
@@ -2098,7 +2450,7 @@ app.put(
 ========================================================= */
 
 app.delete(
-    "/api/produtos/:id",
+    "/api/produto/:id",
     exigirLogin,
     async function (
         req,
@@ -2628,8 +2980,10 @@ app.post(
         const client =
             await pool.connect();
 
+
         let transacaoIniciada =
             false;
+
 
         try {
 
@@ -2641,6 +2995,7 @@ app.post(
 
                     : "";
 
+
             const telefone =
                 typeof req.body.telefone ===
                 "string"
@@ -2648,6 +3003,7 @@ app.post(
                     ? req.body.telefone.trim()
 
                     : "";
+
 
             const endereco =
                 typeof req.body.endereco ===
@@ -2657,6 +3013,7 @@ app.post(
 
                     : "";
 
+
             const tipoEntrega =
                 typeof req.body.tipo_entrega ===
                 "string"
@@ -2664,6 +3021,7 @@ app.post(
                     ? req.body.tipo_entrega.trim()
 
                     : "";
+
 
             const regiao =
                 typeof req.body.regiao ===
@@ -2673,6 +3031,7 @@ app.post(
 
                     : "";
 
+
             const pagamento =
                 typeof req.body.pagamento ===
                 "string"
@@ -2681,13 +3040,10 @@ app.post(
 
                     : "";
 
+
             const itens =
                 req.body.itens;
 
-
-            /* =================================================
-               VALIDAÇÕES
-            ================================================= */
 
             if (
                 !cliente ||
@@ -2756,12 +3112,9 @@ app.post(
             }
 
 
-            /* =================================================
-               CALCULAR SUBTOTAL
-            ================================================= */
-
             let subtotal =
                 0;
+
 
             const itensValidados =
                 [];
@@ -2891,7 +3244,7 @@ app.post(
 
 
             /* =================================================
-               CALCULAR TAXA
+               TAXA
             ================================================= */
 
             let taxa =
@@ -3001,10 +3354,6 @@ app.post(
                 taxa;
 
 
-            /* =================================================
-               VALIDAR PAGAMENTO EM DINHEIRO
-            ================================================= */
-
             if (
                 pagamento.toLowerCase() ===
                 "dinheiro" &&
@@ -3104,7 +3453,7 @@ app.post(
 
 
             /* =================================================
-               INSERIR ITENS
+               ITENS
             ================================================= */
 
             for (
@@ -3157,10 +3506,6 @@ app.post(
             transacaoIniciada =
                 false;
 
-
-            /* =================================================
-               RESPOSTA
-            ================================================= */
 
             res.json({
 
@@ -3242,8 +3587,7 @@ app.get(
 
                     FROM pedidos
 
-                    ORDER BY
-                        id DESC
+                    ORDER BY id DESC
                     `
                 );
 
@@ -3298,6 +3642,73 @@ app.get(
 
                     erro:
                         "Erro ao buscar pedidos."
+
+                });
+        }
+    }
+);
+
+
+/* =========================================================
+   NOVOS PEDIDOS
+   IMPORTANTE:
+   Esta rota fica ANTES de /api/pedidos/:id
+========================================================= */
+
+app.get(
+    "/api/pedidos/novos",
+    exigirLogin,
+    async function (
+        req,
+        res
+    ) {
+
+        try {
+
+            const resultado =
+                await query(
+                    `
+                    SELECT
+
+                        COUNT(*) AS total
+
+                    FROM pedidos
+
+                    WHERE status = 'novo'
+
+                    AND criado_em >=
+                        CURRENT_TIMESTAMP
+                        - INTERVAL '24 hours'
+                    `
+                );
+
+
+            res.json({
+
+                sucesso: true,
+
+                total:
+                    Number(
+                        resultado.rows[0].total
+                    )
+
+            });
+
+
+        } catch (erro) {
+
+            console.error(
+                "Erro ao verificar novos pedidos:",
+                erro
+            );
+
+
+            res
+                .status(500)
+                .json({
+
+                    erro:
+                        "Erro ao verificar novos pedidos."
 
                 });
         }
@@ -3427,7 +3838,7 @@ app.get(
 
 
 /* =========================================================
-   ALTERAR STATUS DO PEDIDO
+   ALTERAR STATUS PEDIDO
 ========================================================= */
 
 app.put(
@@ -3552,72 +3963,7 @@ app.put(
 
 
 /* =========================================================
-   NOVOS PEDIDOS
-========================================================= */
-
-app.get(
-    "/api/pedidos/novos",
-    exigirLogin,
-    async function (
-        req,
-        res
-    ) {
-
-        try {
-
-            const resultado =
-                await query(
-                    `
-                    SELECT
-
-                        COUNT(*) AS total
-
-                    FROM pedidos
-
-                    WHERE status = 'novo'
-
-                    AND criado_em >=
-                        CURRENT_TIMESTAMP
-                        - INTERVAL '24 hours'
-                    `
-                );
-
-
-            res.json({
-
-                sucesso: true,
-
-                total:
-                    Number(
-                        resultado.rows[0].total
-                    )
-
-            });
-
-
-        } catch (erro) {
-
-            console.error(
-                "Erro ao verificar novos pedidos:",
-                erro
-            );
-
-
-            res
-                .status(500)
-                .json({
-
-                    erro:
-                        "Erro ao verificar novos pedidos."
-
-                });
-        }
-    }
-);
-
-
-/* =========================================================
-   ESTATÍSTICAS DO ADMIN
+   ESTATÍSTICAS
 ========================================================= */
 
 app.get(
@@ -3630,11 +3976,13 @@ app.get(
 
         try {
 
-            const produtos =
+            const produto =
                 await query(`
                     SELECT
                         COUNT(*) AS total
+
                     FROM produtos
+
                     WHERE ativo = 1
                 `);
 
@@ -3643,6 +3991,7 @@ app.get(
                 await query(`
                     SELECT
                         COUNT(*) AS total
+
                     FROM pedidos
                 `);
 
@@ -3651,7 +4000,9 @@ app.get(
                 await query(`
                     SELECT
                         COUNT(*) AS total
+
                     FROM pedidos
+
                     WHERE criado_em >= CURRENT_DATE
                 `);
 
@@ -3663,7 +4014,9 @@ app.get(
                             SUM(total),
                             0
                         ) AS total
+
                     FROM pedidos
+
                     WHERE status != 'cancelado'
                 `);
 
@@ -3672,7 +4025,9 @@ app.get(
                 await query(`
                     SELECT
                         COUNT(*) AS total
+
                     FROM pedidos
+
                     WHERE status = 'novo'
                 `);
 
@@ -3683,7 +4038,7 @@ app.get(
 
                 produtos:
                     Number(
-                        produtos.rows[0].total
+                        produto.rows[0].total
                     ),
 
                 pedidos:
@@ -3731,7 +4086,7 @@ app.get(
 
 
 /* =========================================================
-   RELATÓRIOS ADMINISTRATIVOS
+   RELATÓRIOS
 ========================================================= */
 
 app.get(
@@ -4012,6 +4367,7 @@ app.get(
 
                     },
 
+
                     semana: {
 
                         faturamento:
@@ -4036,6 +4392,7 @@ app.get(
                             )
 
                     },
+
 
                     mes: {
 
@@ -4062,6 +4419,7 @@ app.get(
 
                     },
 
+
                     total: {
 
                         faturamento:
@@ -4081,6 +4439,7 @@ app.get(
                     }
 
                 },
+
 
                 produtosMaisVendidos:
                     maisVendidos.rows.map(
@@ -4141,7 +4500,7 @@ app.get(
 ========================================================= */
 
 app.get(
-    "/api/admin/relatorios/produtos",
+    "/api/admin/relatorios/produto",
     exigirLogin,
     async function (
         req,
@@ -4483,7 +4842,7 @@ app.get(
 
 
 /* =========================================================
-   ERRO DO MULTER
+   ERROS DO MULTER
 ========================================================= */
 
 app.use(
@@ -4504,6 +4863,8 @@ app.use(
                 .status(400)
                 .json({
 
+                    sucesso: false,
+
                     erro:
                         "A imagem deve ter no máximo 3 MB."
 
@@ -4513,7 +4874,8 @@ app.use(
 
         if (
             erro &&
-            erro.name === "MulterError"
+            erro.name ===
+            "MulterError"
         ) {
 
             return res
@@ -4539,6 +4901,8 @@ app.use(
                 .status(400)
                 .json({
 
+                    sucesso: false,
+
                     erro:
                         erro.message
 
@@ -4554,7 +4918,7 @@ app.use(
 
 
 /* =========================================================
-   ROTA 404 DA API
+   ROTA 404 API
 ========================================================= */
 
 app.use(
@@ -4641,7 +5005,30 @@ async function iniciarServidor() {
         );
 
 
+        console.log(
+            "Banco:",
+            DATABASE_URL
+                ? "configurado"
+                : "não configurado"
+        );
+
+
+        console.log(
+            "Supabase:",
+            SUPABASE_URL
+                ? "configurado"
+                : "não configurado"
+        );
+
+
+        console.log(
+            "Bucket:",
+            SUPABASE_BUCKET
+        );
+
+
         await inicializarBanco();
+
 
         await verificarBucket();
 
@@ -4672,11 +5059,19 @@ async function iniciarServidor() {
                 );
 
                 console.log(
+                    `Bucket: ${SUPABASE_BUCKET}`
+                );
+
+                console.log(
+                    "Upload de imagens ativo."
+                );
+
+                console.log(
                     "Relatórios administrativos ativos."
                 );
 
                 console.log(
-                    "POST /api/produtos ativo."
+                    "POST /api/produto ativo."
                 );
 
                 console.log(
