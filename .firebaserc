@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "activity-manager-d4f2c"
-  }
+  },
+  "targets": {
+    "activity-manager-d4f2c": {
+      "hosting": {
+        "docemania": [
+          "docemania-e4926"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

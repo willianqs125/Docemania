@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "docemania-e4926",
     "public": "public",
     "ignore": [
       "firebase.json",
