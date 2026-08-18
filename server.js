@@ -1266,9 +1266,11 @@ app.get(
    UPLOAD SUPABASE
 ========================================================= */
 
-async function enviarImagemParaSupabase(
-    arquivo
-) {
+/* =========================================================
+   UPLOAD DE IMAGENS - SUPABASE STORAGE
+========================================================= */
+
+async function enviarImagemParaSupabase(arquivo) {
 
     if (!arquivo) {
         return null;
@@ -1276,45 +1278,41 @@ async function enviarImagemParaSupabase(
 
     const extensao =
         path
-            .extname(
-                arquivo.originalname
-            )
+            .extname(arquivo.originalname)
             .toLowerCase();
 
     const extensoesPermitidas = [
-
         ".jpg",
-
         ".jpeg",
-
         ".png",
-
         ".webp"
-
     ];
 
-    if (
-        !extensoesPermitidas.includes(
-            extensao
-        )
-    ) {
-
+    if (!extensoesPermitidas.includes(extensao)) {
         throw new Error(
             "Formato de imagem não permitido."
         );
     }
 
+    /*
+       Nome único para evitar conflito
+    */
     const nomeArquivo =
-        Date.now() +
-        "-" +
-        crypto
+        `produto-${Date.now()}-${crypto
             .randomBytes(8)
-            .toString("hex") +
-        extensao;
+            .toString("hex")}${extensao}`;
 
-    const caminho =
-        "produtos/" +
-        nomeArquivo;
+    /*
+       IMPORTANTE:
+       O bucket já se chama "produtos".
+       Portanto, não colocamos "produtos/" no caminho.
+    */
+    const caminho = nomeArquivo;
+
+    console.log(
+        "Enviando imagem para Supabase:",
+        caminho
+    );
 
     const resultado =
         await supabase.storage
@@ -1323,23 +1321,30 @@ async function enviarImagemParaSupabase(
                 caminho,
                 arquivo.buffer,
                 {
-
                     contentType:
                         arquivo.mimetype,
 
+                    cacheControl:
+                        "3600",
+
                     upsert:
                         false
-
                 }
             );
 
-    if (
-        resultado.error
-    ) {
+    if (resultado.error) {
+
+        console.error(
+            "Erro do Supabase Storage:",
+            resultado.error
+        );
 
         throw resultado.error;
     }
 
+    /*
+       Gerar URL pública
+    */
     const url =
         supabase.storage
             .from("produtos")
@@ -1347,162 +1352,24 @@ async function enviarImagemParaSupabase(
                 caminho
             );
 
-    return url
-        .data
-        .publicUrl;
-}
-
-
-/* =========================================================
-   CRIAR PRODUTO
-========================================================= */
-
-app.post(
-    "/api/produtos",
-    exigirLogin,
-    upload.single("imagem"),
-    async function (
-        req,
-        res
+    if (
+        !url ||
+        !url.data ||
+        !url.data.publicUrl
     ) {
 
-        try {
-
-            const nome =
-                typeof req.body.nome ===
-                "string"
-
-                    ? req.body.nome.trim()
-
-                    : "";
-
-            const descricao =
-                typeof req.body.descricao ===
-                "string"
-
-                    ? req.body.descricao
-
-                    : "";
-
-            const preco =
-                Number(
-                    req.body.preco
-                );
-
-            const ativo =
-                req.body.ativo ===
-                undefined
-
-                    ? 1
-
-                    : Number(
-                        req.body.ativo
-                    )
-                        ? 1
-                        : 0;
-
-            if (!nome) {
-
-                return res
-                    .status(400)
-                    .json({
-
-                        erro:
-                            "Nome é obrigatório."
-
-                    });
-            }
-
-            if (
-                !Number.isFinite(preco) ||
-                preco < 0
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-
-                        erro:
-                            "Preço inválido."
-
-                    });
-            }
-
-            let imagem = null;
-
-            if (req.file) {
-
-                imagem =
-                    await enviarImagemParaSupabase(
-                        req.file
-                    );
-            }
-
-            const resultado =
-                await query(
-                    `
-                    INSERT INTO produtos
-                    (
-                        nome,
-                        descricao,
-                        preco,
-                        imagem,
-                        ativo
-                    )
-
-                    VALUES
-                    (
-                        $1,
-                        $2,
-                        $3,
-                        $4,
-                        $5
-                    )
-
-                    RETURNING *
-                    `,
-                    [
-
-                        nome,
-
-                        descricao,
-
-                        preco,
-
-                        imagem,
-
-                        ativo
-
-                    ]
-                );
-
-            res.json({
-
-                sucesso: true,
-
-                produto:
-                    resultado.rows[0]
-
-            });
-
-        } catch (erro) {
-
-            console.error(
-                "Erro ao criar produto:",
-                erro
-            );
-
-            res
-                .status(500)
-                .json({
-
-                    erro:
-                        "Erro ao adicionar produto."
-
-                });
-        }
+        throw new Error(
+            "Não foi possível gerar a URL pública da imagem."
+        );
     }
-);
+
+    console.log(
+        "Imagem enviada com sucesso:",
+        url.data.publicUrl
+    );
+
+    return url.data.publicUrl;
+}
 
 
 /* =========================================================
