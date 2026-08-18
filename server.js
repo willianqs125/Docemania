@@ -31,7 +31,9 @@ const DATABASE_URL =
     process.env.DATABASE_URL;
 
 const SUPABASE_URL =
-    process.env.SUPABASE_URL;
+    typeof process.env.SUPABASE_URL === "string"
+        ? process.env.SUPABASE_URL.trim().replace(/\/+$/, "")
+        : process.env.SUPABASE_URL;
 
 const SUPABASE_KEY =
     process.env.SUPABASE_KEY;
@@ -46,7 +48,9 @@ const SESSION_SECRET =
     process.env.SESSION_SECRET;
 
 const SUPABASE_BUCKET =
-    process.env.SUPABASE_BUCKET || "produto";
+    (process.env.SUPABASE_BUCKET || "produto")
+        .trim()
+        .replace(/^['"]|['"]$/g, "");
 
 
 /* =========================================================
@@ -471,7 +475,22 @@ async function enviarImagemParaSupabase(
         */
 
         const caminho =
-            nomeArquivo;
+            nomeArquivo.replace(
+                /[^a-zA-Z0-9._-]/g,
+                "-"
+            );
+
+
+        if (
+            !caminho ||
+            caminho.includes("/") ||
+            caminho.includes("\\")
+        ) {
+
+            throw new Error(
+                "Caminho de imagem inválido para o Supabase Storage."
+            );
+        }
 
 
         console.log(
