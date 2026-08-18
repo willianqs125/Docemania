@@ -164,8 +164,87 @@ async function query(
 const supabase =
     createClient(
         SUPABASE_URL,
-        SUPABASE_KEY
+        SUPABASE_KEY,
+        {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false
+            }
+        }
     );
+
+
+/* Nome do bucket de imagens (configurável por variável de ambiente) */
+
+const SUPABASE_BUCKET =
+    process.env.SUPABASE_BUCKET ||
+    "Produto";
+
+
+/* Verifica, no boot, se o bucket existe de verdade.
+   Se o bucket não existir (ou o nome estiver com outra grafia),
+   o upload falha e o produto não salva. */
+
+async function verificarBucket() {
+
+    try {
+
+        const { data, error } =
+            await supabase
+                .storage
+                .listBuckets();
+
+        if (error) {
+
+            console.error(
+                "Não foi possível listar buckets do Supabase:",
+                error.message
+            );
+
+            console.error(
+                "Provável causa: SUPABASE_KEY sem permissão. Use a chave service_role no servidor."
+            );
+
+            return;
+        }
+
+        const nomes =
+            (data || []).map(
+                function (b) {
+                    return b.name;
+                }
+            );
+
+        if (!nomes.includes(SUPABASE_BUCKET)) {
+
+            console.error(
+                `ATENÇÃO: o bucket "${SUPABASE_BUCKET}" não existe no Supabase.`
+            );
+
+            console.error(
+                "Buckets disponíveis:",
+                nomes.join(", ") || "(nenhum)"
+            );
+
+            console.error(
+                "Crie o bucket (público) ou defina SUPABASE_BUCKET com o nome correto."
+            );
+
+        } else {
+
+            console.log(
+                `Bucket de imagens OK: "${SUPABASE_BUCKET}"`
+            );
+        }
+
+    } catch (erro) {
+
+        console.error(
+            "Erro ao verificar bucket:",
+            erro
+        );
+    }
+}
 
 
 /* =========================================================
@@ -1378,7 +1457,7 @@ async function enviarImagemParaSupabase(
 
     const resultado =
         await supabase.storage
-            .from("Produto")
+            .from(SUPABASE_BUCKET)
             .upload(
                 caminho,
                 arquivo.buffer,
@@ -1404,13 +1483,19 @@ async function enviarImagemParaSupabase(
             resultado.error
         );
 
-        throw resultado.error;
+        const detalhe =
+            resultado.error.message ||
+            "erro desconhecido";
+
+        throw new Error(
+            `Falha ao enviar a imagem para o bucket "${SUPABASE_BUCKET}": ${detalhe}`
+        );
     }
 
 
     const url =
         supabase.storage
-            .from("Produto")
+            .from(SUPABASE_BUCKET)
             .getPublicUrl(
                 caminho
             );
@@ -1636,7 +1721,9 @@ app.post(
                     sucesso: false,
 
                     erro:
-                        "Erro ao criar produto."
+                        erro && erro.message
+                            ? erro.message
+                            : "Erro ao criar produto."
 
                 });
         }
@@ -4426,6 +4513,24 @@ app.use(
 
         if (
             erro &&
+            erro.name === "MulterError"
+        ) {
+
+            return res
+                .status(400)
+                .json({
+
+                    sucesso: false,
+
+                    erro:
+                        `Erro no envio do arquivo: ${erro.message}`
+
+                });
+        }
+
+
+        if (
+            erro &&
             erro.message ===
             "Tipo de imagem não permitido."
         ) {
@@ -4537,6 +4642,8 @@ async function iniciarServidor() {
 
 
         await inicializarBanco();
+
+        await verificarBucket();
 
 
         app.listen(
