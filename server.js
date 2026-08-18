@@ -17,6 +17,7 @@ const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 let servidorHttp;
+let encerramentoEmAndamento = false;
 
 
 /* =========================================================
@@ -5348,6 +5349,13 @@ process.on(
 async function encerrarServidor(
     sinal
 ) {
+
+    if (encerramentoEmAndamento) {
+
+        return;
+    }
+
+    encerramentoEmAndamento = true;
 
     console.log(
         `\nRecebido ${sinal}. Encerrando servidor...`
