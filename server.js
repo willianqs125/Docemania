@@ -264,12 +264,14 @@ async function verificarBucket() {
 
 
         const {
-            data,
             error
         } =
             await supabase
                 .storage
-                .listBuckets();
+                .from(SUPABASE_BUCKET)
+                .list("", {
+                    limit: 1
+                });
 
 
         if (error) {
@@ -290,45 +292,9 @@ async function verificarBucket() {
         }
 
 
-        const nomes =
-            (data || []).map(
-                function (
-                    bucket
-                ) {
-
-                    return bucket.name;
-
-                }
-            );
-
-
-        if (
-            !nomes.includes(
-                SUPABASE_BUCKET
-            )
-        ) {
-
-            console.error(
-                `ATENÇÃO: o bucket "${SUPABASE_BUCKET}" não foi encontrado.`
-            );
-
-            console.error(
-                "Buckets encontrados:",
-                nomes.join(", ") ||
-                "(nenhum)"
-            );
-
-            console.error(
-                `Crie no Supabase Storage um bucket chamado "${SUPABASE_BUCKET}".`
-            );
-
-        } else {
-
-            console.log(
-                `Bucket "${SUPABASE_BUCKET}" encontrado com sucesso.`
-            );
-
-        }
+        console.log(
+            `Bucket "${SUPABASE_BUCKET}" acessível com sucesso.`
+        );
 
     } catch (erro) {
 
