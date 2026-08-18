@@ -16,6 +16,7 @@ const { Pool } = require("pg");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
+let servidorHttp;
 
 
 /* =========================================================
@@ -5221,7 +5222,7 @@ async function iniciarServidor() {
         await verificarBucket();
 
 
-        app.listen(
+        servidorHttp = app.listen(
             PORT,
             "0.0.0.0",
             function () {
@@ -5339,6 +5340,18 @@ async function encerrarServidor(
 
     try {
 
+        if (servidorHttp) {
+
+            await new Promise(
+                function (resolver) {
+
+                    servidorHttp.close(
+                        resolver
+                    );
+                }
+            );
+        }
+
         await pool.end();
 
 
@@ -5369,6 +5382,17 @@ process.on(
 
         encerrarServidor(
             "SIGINT"
+        );
+    }
+);
+
+
+process.on(
+    "SIGTERM",
+    function () {
+
+        encerrarServidor(
+            "SIGTERM"
         );
     }
 );
