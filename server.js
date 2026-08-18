@@ -178,7 +178,7 @@ const supabase =
 
 const SUPABASE_BUCKET =
     process.env.SUPABASE_BUCKET ||
-    "Produto";
+    "produto";
 
 
 /* Verifica, no boot, se o bucket existe de verdade.
