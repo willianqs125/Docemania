@@ -1316,7 +1316,7 @@ async function enviarImagemParaSupabase(arquivo) {
 
     const resultado =
         await supabase.storage
-            .from("Produtos")
+            .from("Produto")
             .upload(
                 caminho,
                 arquivo.buffer,
@@ -1347,7 +1347,7 @@ async function enviarImagemParaSupabase(arquivo) {
     */
     const url =
         supabase.storage
-            .from("Produtos")
+            .from("Produto")
             .getPublicUrl(
                 caminho
             );
