@@ -250,6 +250,7 @@ function lerCookies(req) {
         req.headers.cookie;
 
     if (!header) {
+
         return cookies;
     }
 
@@ -267,6 +268,7 @@ function lerCookies(req) {
         if (
             indice === -1
         ) {
+
             continue;
         }
 
@@ -369,6 +371,7 @@ function verificarTokenSessao(
     try {
 
         if (!token) {
+
             return null;
         }
 
@@ -378,6 +381,7 @@ function verificarTokenSessao(
         if (
             partes.length !== 2
         ) {
+
             return null;
         }
 
@@ -414,6 +418,7 @@ function verificarTokenSessao(
             recebido.length !==
             esperado.length
         ) {
+
             return null;
         }
 
@@ -423,6 +428,7 @@ function verificarTokenSessao(
                 esperado
             )
         ) {
+
             return null;
         }
 
@@ -441,6 +447,7 @@ function verificarTokenSessao(
         if (
             !payload.exp
         ) {
+
             return null;
         }
 
@@ -448,6 +455,7 @@ function verificarTokenSessao(
             Date.now() >
             payload.exp
         ) {
+
             return null;
         }
 
@@ -646,7 +654,7 @@ async function inicializarBanco() {
 
 
     /* =====================================================
-       GARANTIR COLUNAS DE PRODUTOS
+       GARANTIR COLUNAS
     ===================================================== */
 
     await query(`
@@ -665,11 +673,6 @@ async function inicializarBanco() {
         ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ
         DEFAULT NOW()
     `);
-
-
-    /* =====================================================
-       GARANTIR COLUNAS DE PEDIDOS
-    ===================================================== */
 
     await query(`
         ALTER TABLE pedidos
@@ -1193,7 +1196,23 @@ app.get(
             const resultado =
                 await query(
                     `
-                    SELECT *
+                    SELECT
+
+                        id,
+
+                        nome,
+
+                        categoria,
+
+                        descricao,
+
+                        preco,
+
+                        imagem,
+
+                        ativo,
+
+                        criado_em
 
                     FROM produtos
 
@@ -1246,7 +1265,23 @@ app.get(
             const resultado =
                 await query(
                     `
-                    SELECT *
+                    SELECT
+
+                        id,
+
+                        nome,
+
+                        categoria,
+
+                        descricao,
+
+                        preco,
+
+                        imagem,
+
+                        ativo,
+
+                        criado_em
 
                     FROM produtos
 
@@ -1269,8 +1304,6 @@ app.get(
                 .status(500)
                 .json({
 
-                    sucesso: false,
-
                     erro:
                         "Erro ao buscar produtos."
 
@@ -1289,8 +1322,10 @@ async function enviarImagemParaSupabase(
 ) {
 
     if (!arquivo) {
+
         return null;
     }
+
 
     const extensao =
         path
@@ -1298,6 +1333,7 @@ async function enviarImagemParaSupabase(
                 arquivo.originalname
             )
             .toLowerCase();
+
 
     const extensoesPermitidas = [
 
@@ -1310,6 +1346,7 @@ async function enviarImagemParaSupabase(
         ".webp"
 
     ];
+
 
     if (
         !extensoesPermitidas.includes(
@@ -1420,25 +1457,38 @@ app.post(
                 "POST /api/produtos recebido."
             );
 
+            console.log(
+                "Dados recebidos:",
+                req.body
+            );
 
-            /* =================================================
-               DADOS
-            ================================================= */
 
             const nome =
-                typeof req.body.nome === "string"
+                typeof req.body.nome ===
+                "string"
+
                     ? req.body.nome.trim()
+
                     : "";
+
 
             const categoria =
-                typeof req.body.categoria === "string"
+                typeof req.body.categoria ===
+                "string"
+
                     ? req.body.categoria.trim()
+
                     : "";
 
+
             const descricao =
-                typeof req.body.descricao === "string"
+                typeof req.body.descricao ===
+                "string"
+
                     ? req.body.descricao.trim()
+
                     : "";
+
 
             const preco =
                 Number(
@@ -1447,7 +1497,7 @@ app.post(
 
 
             /* =================================================
-               VALIDAÇÕES
+               VALIDAÇÃO
             ================================================= */
 
             if (!nome) {
@@ -1477,7 +1527,7 @@ app.post(
                         sucesso: false,
 
                         erro:
-                            "Preço do produto inválido."
+                            "Preço do produto é inválido."
 
                     });
             }
@@ -1487,7 +1537,9 @@ app.post(
                IMAGEM
             ================================================= */
 
-            let imagem = null;
+            let imagem =
+                null;
+
 
             if (req.file) {
 
@@ -1512,8 +1564,7 @@ app.post(
                         descricao,
                         preco,
                         imagem,
-                        ativo,
-                        criado_em
+                        ativo
                     )
 
                     VALUES
@@ -1523,8 +1574,7 @@ app.post(
                         $3,
                         $4,
                         $5,
-                        1,
-                        NOW()
+                        1
                     )
 
                     RETURNING *
@@ -1545,22 +1595,31 @@ app.post(
                 );
 
 
+            const produto =
+                resultado.rows[0];
+
+
             console.log(
                 "Produto criado:",
-                resultado.rows[0]
+                produto
             );
 
 
-            res
+            /* =================================================
+               RESPOSTA
+            ================================================= */
+
+            return res
                 .status(201)
                 .json({
 
                     sucesso: true,
 
                     produto:
-                        resultado.rows[0]
+                        produto
 
                 });
+
 
         } catch (erro) {
 
@@ -1569,7 +1628,8 @@ app.post(
                 erro
             );
 
-            res
+
+            return res
                 .status(500)
                 .json({
 
@@ -1604,6 +1664,7 @@ app.put(
                     req.params.id
                 );
 
+
             if (
                 !Number.isInteger(id)
             ) {
@@ -1611,8 +1672,6 @@ app.put(
                 return res
                     .status(400)
                     .json({
-
-                        sucesso: false,
 
                         erro:
                             "ID inválido."
@@ -1644,8 +1703,6 @@ app.put(
                     .status(404)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Produto não encontrado."
 
@@ -1672,10 +1729,7 @@ app.put(
                 req.body.categoria ===
                 undefined
 
-                    ? (
-                        atual.categoria ||
-                        ""
-                    )
+                    ? atual.categoria
 
                     : String(
                         req.body.categoria
@@ -1686,10 +1740,7 @@ app.put(
                 req.body.descricao ===
                 undefined
 
-                    ? (
-                        atual.descricao ||
-                        ""
-                    )
+                    ? atual.descricao
 
                     : String(
                         req.body.descricao
@@ -1738,8 +1789,6 @@ app.put(
                 return res
                     .status(400)
                     .json({
-
-                        sucesso: false,
 
                         erro:
                             "Dados do produto inválidos."
@@ -1825,6 +1874,7 @@ app.put(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -1832,11 +1882,10 @@ app.put(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao atualizar produto."
@@ -1883,8 +1932,6 @@ app.put(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "ID inválido."
 
@@ -1921,8 +1968,6 @@ app.put(
                     .status(404)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Produto não encontrado."
 
@@ -1939,6 +1984,7 @@ app.put(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -1946,11 +1992,10 @@ app.put(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao alterar status do produto."
@@ -1989,8 +2034,6 @@ app.delete(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "ID inválido."
 
@@ -2019,8 +2062,6 @@ app.delete(
                     .status(404)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Produto não encontrado."
 
@@ -2034,6 +2075,7 @@ app.delete(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -2041,11 +2083,10 @@ app.delete(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Não foi possível excluir o produto."
@@ -2085,6 +2126,7 @@ app.get(
                 resultado.rows
             );
 
+
         } catch (erro) {
 
             console.error(
@@ -2092,11 +2134,10 @@ app.get(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao buscar regiões."
@@ -2147,8 +2188,6 @@ app.post(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Nome da região é obrigatório."
 
@@ -2161,8 +2200,6 @@ app.post(
                 return res
                     .status(400)
                     .json({
-
-                        sucesso: false,
 
                         erro:
                             "Tipo da região é obrigatório."
@@ -2179,8 +2216,6 @@ app.post(
                 return res
                     .status(400)
                     .json({
-
-                        sucesso: false,
 
                         erro:
                             "Taxa inválida."
@@ -2229,6 +2264,7 @@ app.post(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -2236,11 +2272,10 @@ app.post(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao criar região."
@@ -2299,8 +2334,6 @@ app.put(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "ID inválido."
 
@@ -2318,8 +2351,6 @@ app.put(
                 return res
                     .status(400)
                     .json({
-
-                        sucesso: false,
 
                         erro:
                             "Dados da região inválidos."
@@ -2367,8 +2398,6 @@ app.put(
                     .status(404)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Região não encontrada."
 
@@ -2385,6 +2414,7 @@ app.put(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -2392,11 +2422,10 @@ app.put(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao editar região."
@@ -2435,8 +2464,6 @@ app.delete(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "ID inválido."
 
@@ -2465,8 +2492,6 @@ app.delete(
                     .status(404)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Região não encontrada."
 
@@ -2480,6 +2505,7 @@ app.delete(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -2487,11 +2513,10 @@ app.delete(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao excluir região."
@@ -2529,7 +2554,6 @@ app.post(
 
                     : "";
 
-
             const telefone =
                 typeof req.body.telefone ===
                 "string"
@@ -2537,7 +2561,6 @@ app.post(
                     ? req.body.telefone.trim()
 
                     : "";
-
 
             const endereco =
                 typeof req.body.endereco ===
@@ -2547,7 +2570,6 @@ app.post(
 
                     : "";
 
-
             const tipoEntrega =
                 typeof req.body.tipo_entrega ===
                 "string"
@@ -2555,7 +2577,6 @@ app.post(
                     ? req.body.tipo_entrega.trim()
 
                     : "";
-
 
             const regiao =
                 typeof req.body.regiao ===
@@ -2565,7 +2586,6 @@ app.post(
 
                     : "";
 
-
             const pagamento =
                 typeof req.body.pagamento ===
                 "string"
@@ -2573,7 +2593,6 @@ app.post(
                     ? req.body.pagamento.trim()
 
                     : "";
-
 
             const itens =
                 req.body.itens;
@@ -2592,8 +2611,6 @@ app.post(
                 return res
                     .status(400)
                     .json({
-
-                        sucesso: false,
 
                         erro:
                             "Pedido inválido."
@@ -2615,8 +2632,6 @@ app.post(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Tipo de entrega inválido."
 
@@ -2629,8 +2644,6 @@ app.post(
                 return res
                     .status(400)
                     .json({
-
-                        sucesso: false,
 
                         erro:
                             "Forma de pagamento obrigatória."
@@ -2649,8 +2662,6 @@ app.post(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Endereço é obrigatório para entrega."
 
@@ -2662,9 +2673,11 @@ app.post(
                CALCULAR SUBTOTAL
             ================================================= */
 
-            let subtotal = 0;
+            let subtotal =
+                0;
 
-            const itensValidados = [];
+            const itensValidados =
+                [];
 
 
             for (
@@ -2695,8 +2708,6 @@ app.post(
                         .status(400)
                         .json({
 
-                            sucesso: false,
-
                             erro:
                                 "Quantidade inválida."
 
@@ -2713,8 +2724,6 @@ app.post(
                     return res
                         .status(400)
                         .json({
-
-                            sucesso: false,
 
                             erro:
                                 "Produto inválido."
@@ -2755,8 +2764,6 @@ app.post(
                     return res
                         .status(400)
                         .json({
-
-                            sucesso: false,
 
                             erro:
                                 "Produto não encontrado ou inativo."
@@ -2800,7 +2807,8 @@ app.post(
                CALCULAR TAXA
             ================================================= */
 
-            let taxa = 0;
+            let taxa =
+                0;
 
 
             if (
@@ -2813,8 +2821,6 @@ app.post(
                     return res
                         .status(400)
                         .json({
-
-                            sucesso: false,
 
                             erro:
                                 "Selecione uma região para entrega."
@@ -2854,8 +2860,6 @@ app.post(
                         .status(400)
                         .json({
 
-                            sucesso: false,
-
                             erro:
                                 "Região de entrega não encontrada."
 
@@ -2894,8 +2898,6 @@ app.post(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Valor de troco inválido."
 
@@ -2926,8 +2928,6 @@ app.post(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "O valor informado para troco deve ser igual ou maior que o total."
 
@@ -2942,6 +2942,7 @@ app.post(
             await client.query(
                 "BEGIN"
             );
+
 
             transacaoIniciada =
                 true;
@@ -3065,9 +3066,14 @@ app.post(
                 "COMMIT"
             );
 
+
             transacaoIniciada =
                 false;
 
+
+            /* =================================================
+               RESPOSTA
+            ================================================= */
 
             res.json({
 
@@ -3091,6 +3097,7 @@ app.post(
 
             });
 
+
         } catch (erro) {
 
             if (
@@ -3113,12 +3120,11 @@ app.post(
                 .status(500)
                 .json({
 
-                    sucesso: false,
-
                     erro:
                         "Erro ao criar pedido."
 
                 });
+
 
         } finally {
 
@@ -3190,6 +3196,7 @@ app.get(
                 pedidos
             );
 
+
         } catch (erro) {
 
             console.error(
@@ -3197,11 +3204,10 @@ app.get(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao buscar pedidos."
@@ -3240,8 +3246,6 @@ app.get(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "ID inválido."
 
@@ -3273,8 +3277,6 @@ app.get(
                 return res
                     .status(404)
                     .json({
-
-                        sucesso: false,
 
                         erro:
                             "Pedido não encontrado."
@@ -3315,6 +3317,7 @@ app.get(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -3322,11 +3325,10 @@ app.get(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao buscar pedido."
@@ -3388,8 +3390,6 @@ app.put(
                     .status(400)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Status inválido."
 
@@ -3426,8 +3426,6 @@ app.put(
                     .status(404)
                     .json({
 
-                        sucesso: false,
-
                         erro:
                             "Pedido não encontrado."
 
@@ -3444,6 +3442,7 @@ app.put(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -3451,11 +3450,10 @@ app.put(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao alterar status."
@@ -3509,6 +3507,7 @@ app.get(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -3516,11 +3515,10 @@ app.get(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao verificar novos pedidos."
@@ -3623,6 +3621,7 @@ app.get(
 
             });
 
+
         } catch (erro) {
 
             console.error(
@@ -3630,11 +3629,10 @@ app.get(
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         "Erro ao buscar estatísticas."
@@ -3776,8 +3774,7 @@ app.get(
 
                     AND p.criado_em >= CURRENT_DATE
 
-                    AND p.criado_em <
-                        CURRENT_DATE +
+                    AND p.criado_em < CURRENT_DATE +
                         INTERVAL '1 day'
                 `);
 
@@ -4028,12 +4025,14 @@ app.get(
 
             });
 
+
         } catch (erro) {
 
             console.error(
                 "Erro ao gerar relatório:",
                 erro
             );
+
 
             res
                 .status(500)
@@ -4132,8 +4131,7 @@ app.get(
 
                     AND p.criado_em >= CURRENT_DATE
 
-                    AND p.criado_em <
-                        CURRENT_DATE +
+                    AND p.criado_em < CURRENT_DATE +
                         INTERVAL '1 day'
 
                     GROUP BY
@@ -4320,12 +4318,14 @@ app.get(
 
             });
 
+
         } catch (erro) {
 
             console.error(
                 "Erro ao gerar relatório por produto:",
                 erro
             );
+
 
             res
                 .status(500)
@@ -4373,13 +4373,8 @@ app.get(
 
             });
 
+
         } catch (erro) {
-
-            console.error(
-                "Health check:",
-                erro
-            );
-
 
             res
                 .status(503)
@@ -4422,8 +4417,6 @@ app.use(
                 .status(400)
                 .json({
 
-                    sucesso: false,
-
                     erro:
                         "A imagem deve ter no máximo 3 MB."
 
@@ -4440,8 +4433,6 @@ app.use(
             return res
                 .status(400)
                 .json({
-
-                    sucesso: false,
 
                     erro:
                         erro.message
@@ -4467,13 +4458,6 @@ app.use(
         req,
         res
     ) {
-
-        console.error(
-            "Rota da API não encontrada:",
-            req.method,
-            req.originalUrl
-        );
-
 
         res
             .status(404)
@@ -4585,7 +4569,7 @@ async function iniciarServidor() {
                 );
 
                 console.log(
-                    "Rota POST /api/produtos ativa."
+                    "POST /api/produtos ativo."
                 );
 
                 console.log(
@@ -4593,6 +4577,7 @@ async function iniciarServidor() {
                 );
             }
         );
+
 
     } catch (erro) {
 
@@ -4673,6 +4658,7 @@ async function encerrarServidor(
 
 
         process.exit(0);
+
 
     } catch (erro) {
 
