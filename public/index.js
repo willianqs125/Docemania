@@ -2673,7 +2673,7 @@ async function salvarProdutoAdmin() {
 
             resultado =
                 await requisicao(
-                    `/produtos/${produtoEditandoId}`,
+                    `/produto/${produtoEditandoId}`,
                     {
                         method: "PUT",
                         body: formData
@@ -2684,7 +2684,7 @@ async function salvarProdutoAdmin() {
 
             resultado =
                 await requisicao(
-                    "/produtos",
+                    "/produto",
                     {
                         method: "POST",
                         body: formData
@@ -2838,7 +2838,7 @@ async function excluirProduto(
     try {
 
         await requisicao(
-            `/produtos/${id}`,
+            `/produto/${id}`,
             {
                 method: "DELETE"
             }

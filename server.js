@@ -378,6 +378,11 @@ async function enviarImagemParaSupabase(
     );
 
     console.log(
+        "Buffer length:",
+        arquivo.buffer ? arquivo.buffer.length : "NULL"
+    );
+
+    console.log(
         "Bucket:",
         SUPABASE_BUCKET
     );
@@ -385,6 +390,18 @@ async function enviarImagemParaSupabase(
     console.log(
         "========================================"
     );
+
+
+    /* =================================================
+       VALIDAR BUFFER
+    ================================================= */
+
+    if (!arquivo.buffer || arquivo.buffer.length === 0) {
+
+        throw new Error(
+            "Buffer do arquivo vazio ou inválido."
+        );
+    }
 
 
     try {
@@ -498,6 +515,22 @@ async function enviarImagemParaSupabase(
         /* =================================================
            UPLOAD
         ================================================= */
+
+        if (!SUPABASE_BUCKET || SUPABASE_BUCKET.trim() === "") {
+
+            throw new Error(
+                "SUPABASE_BUCKET não configurado."
+            );
+        }
+
+
+        console.log(
+            "Iniciando upload para bucket:",
+            SUPABASE_BUCKET,
+            "com caminho:",
+            caminho
+        );
+
 
         const resultado =
             await supabase
@@ -1621,8 +1654,17 @@ app.post(
         } catch (erro) {
 
             console.error(
-                "Erro no login:",
-                erro
+                "❌ ERRO NO LOGIN:"
+            );
+
+            console.error(
+                "Mensagem:",
+                erro.message
+            );
+
+            console.error(
+                "Stack:",
+                erro.stack
             );
 
 
@@ -1633,6 +1675,7 @@ app.post(
                     sucesso: false,
 
                     erro:
+                        erro.message ||
                         "Erro no login."
 
                 });
@@ -1718,6 +1761,185 @@ app.post(
             sucesso: true
 
         });
+    }
+);
+
+
+/* =========================================================
+   TESTE: CRIAR PRODUTO COM IMAGEM (SEM AUTENTICAÇÃO)
+=========================================================
+
+   Endpoint para testar o fluxo de upload sem login.
+   Use: POST /api/teste/produto com multipart/form-data
+   
+   Campos:
+   - nome (opcional, padrão: "Produto Teste")
+   - categoria (opcional, padrão: "Teste")
+   - descricao (opcional, padrão: "Produto de teste")
+   - preco (opcional, padrão: 10.00)
+   - imagem (arquivo JPEG/PNG)
+
+========================================================= */
+
+app.post(
+    "/api/teste/produto",
+    upload.single("imagem"),
+    async function (
+        req,
+        res
+    ) {
+
+        try {
+
+            console.log(
+                "📝 TESTE: POST /api/teste/produto"
+            );
+
+
+            const nome =
+                typeof req.body.nome ===
+                "string"
+
+                    ? req.body.nome.trim()
+
+                    : "Produto Teste";
+
+
+            const categoria =
+                typeof req.body.categoria ===
+                "string"
+
+                    ? req.body.categoria.trim()
+
+                    : "Teste";
+
+
+            const descricao =
+                typeof req.body.descricao ===
+                "string"
+
+                    ? req.body.descricao.trim()
+
+                    : "Produto de teste";
+
+
+            const preco =
+                Number(req.body.preco) ||
+                10.00;
+
+
+            let imagem =
+                null;
+
+
+            if (req.file) {
+
+                console.log(
+                    "📸 Enviando imagem para Supabase..."
+                );
+
+                imagem =
+                    await enviarImagemParaSupabase(
+                        req.file
+                    );
+
+                console.log(
+                    "✅ URL da imagem:",
+                    imagem
+                );
+            }
+
+
+            const resultado =
+                await query(
+                    `
+                    INSERT INTO produtos
+                    (
+                        nome,
+                        categoria,
+                        descricao,
+                        preco,
+                        imagem,
+                        ativo
+                    )
+
+                    VALUES
+                    (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        1
+                    )
+
+                    RETURNING *
+                    `,
+                    [
+
+                        nome,
+
+                        categoria,
+
+                        descricao,
+
+                        preco,
+
+                        imagem
+
+                    ]
+                );
+
+
+            const produto =
+                resultado.rows[0];
+
+
+            console.log(
+                "✅ Produto criado - ID:",
+                produto.id
+            );
+
+
+            return res
+                .status(201)
+                .json({
+
+                    sucesso: true,
+
+                    mensagem:
+                        "✅ Produto de TESTE criado com sucesso!",
+
+                    produto:
+                        produto
+
+                });
+
+
+        } catch (erro) {
+
+            console.error(
+                "❌ ERRO NO TESTE:",
+                erro.message
+            );
+
+            console.error(
+                erro.stack
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso: false,
+
+                    erro:
+                        erro.message ||
+                        "Erro ao criar produto."
+
+                });
+        }
     }
 );
 
