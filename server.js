@@ -1387,6 +1387,29 @@ async function inicializarBanco() {
 ========================================================= */
 
 app.get(
+    [
+        "/health",
+        "/api/health"
+    ],
+    function (
+        req,
+        res
+    ) {
+
+        res
+            .status(200)
+            .json({
+
+                sucesso: true,
+
+                status: "online"
+
+            });
+    }
+);
+
+
+app.get(
     "/",
     function (
         req,
@@ -5406,17 +5429,6 @@ process.on(
 
         encerrarServidor(
             "SIGINT"
-        );
-    }
-);
-
-
-process.on(
-    "SIGTERM",
-    function () {
-
-        encerrarServidor(
-            "SIGTERM"
         );
     }
 );
