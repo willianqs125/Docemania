@@ -60,6 +60,7 @@ for (
     const [nome, valor]
     of Object.entries(variaveisObrigatorias)
 ) {
+
     if (!valor) {
 
         console.error(
@@ -540,6 +541,8 @@ async function inicializarBanco() {
 
             nome TEXT NOT NULL,
 
+            categoria TEXT,
+
             descricao TEXT,
 
             preco NUMERIC(10,2) NOT NULL,
@@ -643,8 +646,13 @@ async function inicializarBanco() {
 
 
     /* =====================================================
-       GARANTIR COLUNAS
+       GARANTIR COLUNAS DE PRODUTOS
     ===================================================== */
+
+    await query(`
+        ALTER TABLE produtos
+        ADD COLUMN IF NOT EXISTS categoria TEXT
+    `);
 
     await query(`
         ALTER TABLE produtos
@@ -657,6 +665,11 @@ async function inicializarBanco() {
         ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ
         DEFAULT NOW()
     `);
+
+
+    /* =====================================================
+       GARANTIR COLUNAS DE PEDIDOS
+    ===================================================== */
 
     await query(`
         ALTER TABLE pedidos
@@ -1197,12 +1210,15 @@ app.get(
         } catch (erro) {
 
             console.error(
+                "Erro ao buscar produtos:",
                 erro
             );
 
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao buscar produtos."
@@ -1253,6 +1269,8 @@ app.get(
                 .status(500)
                 .json({
 
+                    sucesso: false,
+
                     erro:
                         "Erro ao buscar produtos."
 
@@ -1263,14 +1281,12 @@ app.get(
 
 
 /* =========================================================
-   UPLOAD SUPABASE
-========================================================= */
-
-/* =========================================================
    UPLOAD DE IMAGENS - SUPABASE STORAGE
 ========================================================= */
 
-async function enviarImagemParaSupabase(arquivo) {
+async function enviarImagemParaSupabase(
+    arquivo
+) {
 
     if (!arquivo) {
         return null;
@@ -1278,41 +1294,50 @@ async function enviarImagemParaSupabase(arquivo) {
 
     const extensao =
         path
-            .extname(arquivo.originalname)
+            .extname(
+                arquivo.originalname
+            )
             .toLowerCase();
 
     const extensoesPermitidas = [
+
         ".jpg",
+
         ".jpeg",
+
         ".png",
+
         ".webp"
+
     ];
 
-    if (!extensoesPermitidas.includes(extensao)) {
+    if (
+        !extensoesPermitidas.includes(
+            extensao
+        )
+    ) {
+
         throw new Error(
             "Formato de imagem não permitido."
         );
     }
 
-    /*
-       Nome único para evitar conflito
-    */
+
     const nomeArquivo =
         `produto-${Date.now()}-${crypto
             .randomBytes(8)
             .toString("hex")}${extensao}`;
 
-    /*
-       IMPORTANTE:
-       O bucket já se chama "produtos".
-       Portanto, não colocamos "produtos/" no caminho.
-    */
-    const caminho = nomeArquivo;
+
+    const caminho =
+        nomeArquivo;
+
 
     console.log(
         "Enviando imagem para Supabase:",
         caminho
     );
+
 
     const resultado =
         await supabase.storage
@@ -1321,6 +1346,7 @@ async function enviarImagemParaSupabase(arquivo) {
                 caminho,
                 arquivo.buffer,
                 {
+
                     contentType:
                         arquivo.mimetype,
 
@@ -1329,8 +1355,10 @@ async function enviarImagemParaSupabase(arquivo) {
 
                     upsert:
                         false
+
                 }
             );
+
 
     if (resultado.error) {
 
@@ -1342,15 +1370,14 @@ async function enviarImagemParaSupabase(arquivo) {
         throw resultado.error;
     }
 
-    /*
-       Gerar URL pública
-    */
+
     const url =
         supabase.storage
             .from("Produto")
             .getPublicUrl(
                 caminho
             );
+
 
     if (
         !url ||
@@ -1363,13 +1390,198 @@ async function enviarImagemParaSupabase(arquivo) {
         );
     }
 
+
     console.log(
         "Imagem enviada com sucesso:",
         url.data.publicUrl
     );
 
+
     return url.data.publicUrl;
 }
+
+
+/* =========================================================
+   CRIAR PRODUTO - ADMIN
+========================================================= */
+
+app.post(
+    "/api/produtos",
+    exigirLogin,
+    upload.single("imagem"),
+    async function (
+        req,
+        res
+    ) {
+
+        try {
+
+            console.log(
+                "POST /api/produtos recebido."
+            );
+
+
+            /* =================================================
+               DADOS
+            ================================================= */
+
+            const nome =
+                typeof req.body.nome === "string"
+                    ? req.body.nome.trim()
+                    : "";
+
+            const categoria =
+                typeof req.body.categoria === "string"
+                    ? req.body.categoria.trim()
+                    : "";
+
+            const descricao =
+                typeof req.body.descricao === "string"
+                    ? req.body.descricao.trim()
+                    : "";
+
+            const preco =
+                Number(
+                    req.body.preco
+                );
+
+
+            /* =================================================
+               VALIDAÇÕES
+            ================================================= */
+
+            if (!nome) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso: false,
+
+                        erro:
+                            "Nome do produto é obrigatório."
+
+                    });
+            }
+
+
+            if (
+                !Number.isFinite(preco) ||
+                preco < 0
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso: false,
+
+                        erro:
+                            "Preço do produto inválido."
+
+                    });
+            }
+
+
+            /* =================================================
+               IMAGEM
+            ================================================= */
+
+            let imagem = null;
+
+            if (req.file) {
+
+                imagem =
+                    await enviarImagemParaSupabase(
+                        req.file
+                    );
+            }
+
+
+            /* =================================================
+               INSERIR PRODUTO
+            ================================================= */
+
+            const resultado =
+                await query(
+                    `
+                    INSERT INTO produtos
+                    (
+                        nome,
+                        categoria,
+                        descricao,
+                        preco,
+                        imagem,
+                        ativo,
+                        criado_em
+                    )
+
+                    VALUES
+                    (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        1,
+                        NOW()
+                    )
+
+                    RETURNING *
+                    `,
+                    [
+
+                        nome,
+
+                        categoria,
+
+                        descricao,
+
+                        preco,
+
+                        imagem
+
+                    ]
+                );
+
+
+            console.log(
+                "Produto criado:",
+                resultado.rows[0]
+            );
+
+
+            res
+                .status(201)
+                .json({
+
+                    sucesso: true,
+
+                    produto:
+                        resultado.rows[0]
+
+                });
+
+        } catch (erro) {
+
+            console.error(
+                "Erro ao criar produto:",
+                erro
+            );
+
+            res
+                .status(500)
+                .json({
+
+                    sucesso: false,
+
+                    erro:
+                        "Erro ao criar produto."
+
+                });
+        }
+    }
+);
 
 
 /* =========================================================
@@ -1400,11 +1612,14 @@ app.put(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "ID inválido."
 
                     });
             }
+
 
             const produto =
                 await query(
@@ -1420,6 +1635,7 @@ app.put(
                     ]
                 );
 
+
             if (
                 produto.rows.length === 0
             ) {
@@ -1428,14 +1644,18 @@ app.put(
                     .status(404)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Produto não encontrado."
 
                     });
             }
 
+
             const atual =
                 produto.rows[0];
+
 
             const nome =
                 req.body.nome ===
@@ -1447,15 +1667,34 @@ app.put(
                         req.body.nome
                     ).trim();
 
+
+            const categoria =
+                req.body.categoria ===
+                undefined
+
+                    ? (
+                        atual.categoria ||
+                        ""
+                    )
+
+                    : String(
+                        req.body.categoria
+                    ).trim();
+
+
             const descricao =
                 req.body.descricao ===
                 undefined
 
-                    ? atual.descricao
+                    ? (
+                        atual.descricao ||
+                        ""
+                    )
 
                     : String(
                         req.body.descricao
                     );
+
 
             const preco =
                 req.body.preco ===
@@ -1469,10 +1708,12 @@ app.put(
                         req.body.preco
                     );
 
+
             let ativo =
                 Number(
                     atual.ativo
                 );
+
 
             if (
                 req.body.ativo !==
@@ -1487,6 +1728,7 @@ app.put(
                         : 0;
             }
 
+
             if (
                 !nome ||
                 !Number.isFinite(preco) ||
@@ -1497,14 +1739,18 @@ app.put(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Dados do produto inválidos."
 
                     });
             }
 
+
             let imagem =
                 atual.imagem;
+
 
             if (req.file) {
 
@@ -1514,6 +1760,7 @@ app.put(
                     );
             }
 
+
             await query(
                 `
                 UPDATE produtos
@@ -1522,19 +1769,23 @@ app.put(
 
                     nome = $1,
 
-                    descricao = $2,
+                    categoria = $2,
 
-                    preco = $3,
+                    descricao = $3,
 
-                    imagem = $4,
+                    preco = $4,
 
-                    ativo = $5
+                    imagem = $5,
 
-                WHERE id = $6
+                    ativo = $6
+
+                WHERE id = $7
                 `,
                 [
 
                     nome,
+
+                    categoria,
 
                     descricao,
 
@@ -1549,6 +1800,7 @@ app.put(
                 ]
             );
 
+
             const atualizado =
                 await query(
                     `
@@ -1562,6 +1814,7 @@ app.put(
                         id
                     ]
                 );
+
 
             res.json({
 
@@ -1582,6 +1835,8 @@ app.put(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao atualizar produto."
@@ -1611,12 +1866,14 @@ app.put(
                     req.params.id
                 );
 
+
             const ativo =
                 Number(
                     req.body.ativo
                 )
                     ? 1
                     : 0;
+
 
             if (
                 !Number.isInteger(id)
@@ -1626,11 +1883,14 @@ app.put(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "ID inválido."
 
                     });
             }
+
 
             const resultado =
                 await query(
@@ -1652,6 +1912,7 @@ app.put(
                     ]
                 );
 
+
             if (
                 resultado.rows.length === 0
             ) {
@@ -1660,11 +1921,14 @@ app.put(
                     .status(404)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Produto não encontrado."
 
                     });
             }
+
 
             res.json({
 
@@ -1685,6 +1949,8 @@ app.put(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao alterar status do produto."
@@ -1714,6 +1980,7 @@ app.delete(
                     req.params.id
                 );
 
+
             if (
                 !Number.isInteger(id)
             ) {
@@ -1722,11 +1989,14 @@ app.delete(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "ID inválido."
 
                     });
             }
+
 
             const resultado =
                 await query(
@@ -1740,6 +2010,7 @@ app.delete(
                     ]
                 );
 
+
             if (
                 resultado.rowCount === 0
             ) {
@@ -1748,11 +2019,14 @@ app.delete(
                     .status(404)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Produto não encontrado."
 
                     });
             }
+
 
             res.json({
 
@@ -1770,6 +2044,8 @@ app.delete(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Não foi possível excluir o produto."
@@ -1804,6 +2080,7 @@ app.get(
                     `
                 );
 
+
             res.json(
                 resultado.rows
             );
@@ -1818,6 +2095,8 @@ app.get(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao buscar regiões."
@@ -1848,16 +2127,19 @@ app.post(
                     ""
                 ).trim();
 
+
             const tipo =
                 String(
                     req.body.tipo ||
                     ""
                 ).trim();
 
+
             const taxa =
                 Number(
                     req.body.taxa
                 );
+
 
             if (!nome) {
 
@@ -1865,11 +2147,14 @@ app.post(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Nome da região é obrigatório."
 
                     });
             }
+
 
             if (!tipo) {
 
@@ -1877,11 +2162,14 @@ app.post(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Tipo da região é obrigatório."
 
                     });
             }
+
 
             if (
                 !Number.isFinite(taxa) ||
@@ -1892,11 +2180,14 @@ app.post(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Taxa inválida."
 
                     });
             }
+
 
             const resultado =
                 await query(
@@ -1928,6 +2219,7 @@ app.post(
                     ]
                 );
 
+
             res.json({
 
                 sucesso: true,
@@ -1947,6 +2239,8 @@ app.post(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao criar região."
@@ -1976,11 +2270,13 @@ app.put(
                     req.params.id
                 );
 
+
             const nome =
                 String(
                     req.body.nome ||
                     ""
                 ).trim();
+
 
             const tipo =
                 String(
@@ -1988,10 +2284,12 @@ app.put(
                     ""
                 ).trim();
 
+
             const taxa =
                 Number(
                     req.body.taxa
                 );
+
 
             if (
                 !Number.isInteger(id)
@@ -2001,11 +2299,14 @@ app.put(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "ID inválido."
 
                     });
             }
+
 
             if (
                 !nome ||
@@ -2018,11 +2319,14 @@ app.put(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Dados da região inválidos."
 
                     });
             }
+
 
             const resultado =
                 await query(
@@ -2054,6 +2358,7 @@ app.put(
                     ]
                 );
 
+
             if (
                 resultado.rows.length === 0
             ) {
@@ -2062,11 +2367,14 @@ app.put(
                     .status(404)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Região não encontrada."
 
                     });
             }
+
 
             res.json({
 
@@ -2087,6 +2395,8 @@ app.put(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao editar região."
@@ -2116,6 +2426,7 @@ app.delete(
                     req.params.id
                 );
 
+
             if (
                 !Number.isInteger(id)
             ) {
@@ -2124,11 +2435,14 @@ app.delete(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "ID inválido."
 
                     });
             }
+
 
             const resultado =
                 await query(
@@ -2142,6 +2456,7 @@ app.delete(
                     ]
                 );
 
+
             if (
                 resultado.rowCount === 0
             ) {
@@ -2150,11 +2465,14 @@ app.delete(
                     .status(404)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Região não encontrada."
 
                     });
             }
+
 
             res.json({
 
@@ -2172,6 +2490,8 @@ app.delete(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao excluir região."
@@ -2209,6 +2529,7 @@ app.post(
 
                     : "";
 
+
             const telefone =
                 typeof req.body.telefone ===
                 "string"
@@ -2216,6 +2537,7 @@ app.post(
                     ? req.body.telefone.trim()
 
                     : "";
+
 
             const endereco =
                 typeof req.body.endereco ===
@@ -2225,6 +2547,7 @@ app.post(
 
                     : "";
 
+
             const tipoEntrega =
                 typeof req.body.tipo_entrega ===
                 "string"
@@ -2232,6 +2555,7 @@ app.post(
                     ? req.body.tipo_entrega.trim()
 
                     : "";
+
 
             const regiao =
                 typeof req.body.regiao ===
@@ -2241,6 +2565,7 @@ app.post(
 
                     : "";
 
+
             const pagamento =
                 typeof req.body.pagamento ===
                 "string"
@@ -2248,6 +2573,7 @@ app.post(
                     ? req.body.pagamento.trim()
 
                     : "";
+
 
             const itens =
                 req.body.itens;
@@ -2267,11 +2593,14 @@ app.post(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Pedido inválido."
 
                     });
             }
+
 
             if (
                 ![
@@ -2286,11 +2615,14 @@ app.post(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Tipo de entrega inválido."
 
                     });
             }
+
 
             if (!pagamento) {
 
@@ -2298,11 +2630,14 @@ app.post(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Forma de pagamento obrigatória."
 
                     });
             }
+
 
             if (
                 tipoEntrega ===
@@ -2313,6 +2648,8 @@ app.post(
                 return res
                     .status(400)
                     .json({
+
+                        sucesso: false,
 
                         erro:
                             "Endereço é obrigatório para entrega."
@@ -2329,6 +2666,7 @@ app.post(
 
             const itensValidados = [];
 
+
             for (
                 const item
                 of itens
@@ -2339,10 +2677,12 @@ app.post(
                         item.quantidade
                     );
 
+
                 const produtoId =
                     Number(
                         item.produto_id
                     );
+
 
                 if (
                     !Number.isInteger(
@@ -2355,11 +2695,14 @@ app.post(
                         .status(400)
                         .json({
 
+                            sucesso: false,
+
                             erro:
                                 "Quantidade inválida."
 
                         });
                 }
+
 
                 if (
                     !Number.isInteger(
@@ -2371,11 +2714,14 @@ app.post(
                         .status(400)
                         .json({
 
+                            sucesso: false,
+
                             erro:
                                 "Produto inválido."
 
                         });
                 }
+
 
                 const produto =
                     await client.query(
@@ -2401,6 +2747,7 @@ app.post(
                         ]
                     );
 
+
                 if (
                     produto.rows.length === 0
                 ) {
@@ -2409,23 +2756,29 @@ app.post(
                         .status(400)
                         .json({
 
+                            sucesso: false,
+
                             erro:
                                 "Produto não encontrado ou inativo."
 
                         });
                 }
 
+
                 const dadosProduto =
                     produto.rows[0];
+
 
                 const preco =
                     Number(
                         dadosProduto.preco
                     );
 
+
                 subtotal +=
                     preco *
                     quantidade;
+
 
                 itensValidados.push({
 
@@ -2449,6 +2802,7 @@ app.post(
 
             let taxa = 0;
 
+
             if (
                 tipoEntrega ===
                 "entrega"
@@ -2460,11 +2814,14 @@ app.post(
                         .status(400)
                         .json({
 
+                            sucesso: false,
+
                             erro:
                                 "Selecione uma região para entrega."
 
                         });
                 }
+
 
                 const resultadoRegiao =
                     await client.query(
@@ -2488,6 +2845,7 @@ app.post(
                         ]
                     );
 
+
                 if (
                     resultadoRegiao.rows.length === 0
                 ) {
@@ -2496,11 +2854,14 @@ app.post(
                         .status(400)
                         .json({
 
+                            sucesso: false,
+
                             erro:
                                 "Região de entrega não encontrada."
 
                         });
                 }
+
 
                 taxa =
                     Number(
@@ -2521,6 +2882,7 @@ app.post(
                     0
                 );
 
+
             if (
                 !Number.isFinite(
                     troco
@@ -2531,6 +2893,8 @@ app.post(
                 return res
                     .status(400)
                     .json({
+
+                        sucesso: false,
 
                         erro:
                             "Valor de troco inválido."
@@ -2562,6 +2926,8 @@ app.post(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "O valor informado para troco deve ser igual ou maior que o total."
 
@@ -2579,6 +2945,7 @@ app.post(
 
             transacaoIniciada =
                 true;
+
 
             const pedido =
                 await client.query(
@@ -2643,6 +3010,7 @@ app.post(
                     ]
                 );
 
+
             const pedidoId =
                 pedido.rows[0].id;
 
@@ -2692,6 +3060,7 @@ app.post(
                 );
             }
 
+
             await client.query(
                 "COMMIT"
             );
@@ -2699,10 +3068,6 @@ app.post(
             transacaoIniciada =
                 false;
 
-
-            /* =================================================
-               RESPOSTA
-            ================================================= */
 
             res.json({
 
@@ -2737,14 +3102,18 @@ app.post(
                 );
             }
 
+
             console.error(
                 "Erro ao criar pedido:",
                 erro
             );
 
+
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao criar pedido."
@@ -2785,8 +3154,10 @@ app.get(
                     `
                 );
 
+
             const pedidos =
                 resultado.rows;
+
 
             for (
                 const pedido
@@ -2809,9 +3180,11 @@ app.get(
                         ]
                     );
 
+
                 pedido.itens =
                     itens.rows;
             }
+
 
             res.json(
                 pedidos
@@ -2827,6 +3200,8 @@ app.get(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao buscar pedidos."
@@ -2856,6 +3231,7 @@ app.get(
                     req.params.id
                 );
 
+
             if (
                 !Number.isInteger(id)
             ) {
@@ -2864,11 +3240,14 @@ app.get(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "ID inválido."
 
                     });
             }
+
 
             const pedido =
                 await query(
@@ -2886,6 +3265,7 @@ app.get(
                     ]
                 );
 
+
             if (
                 pedido.rows.length === 0
             ) {
@@ -2894,11 +3274,14 @@ app.get(
                     .status(404)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Pedido não encontrado."
 
                     });
             }
+
 
             const itens =
                 await query(
@@ -2915,6 +3298,7 @@ app.get(
                         id
                     ]
                 );
+
 
             res.json({
 
@@ -2941,6 +3325,8 @@ app.get(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao buscar pedido."
@@ -2970,11 +3356,13 @@ app.put(
                     req.params.id
                 );
 
+
             const status =
                 String(
                     req.body.status ||
                     ""
                 ).trim();
+
 
             const statusPermitidos = [
 
@@ -2988,6 +3376,7 @@ app.put(
 
             ];
 
+
             if (
                 !Number.isInteger(id) ||
                 !statusPermitidos.includes(
@@ -2999,11 +3388,14 @@ app.put(
                     .status(400)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Status inválido."
 
                     });
             }
+
 
             const resultado =
                 await query(
@@ -3025,6 +3417,7 @@ app.put(
                     ]
                 );
 
+
             if (
                 resultado.rows.length === 0
             ) {
@@ -3033,11 +3426,14 @@ app.put(
                     .status(404)
                     .json({
 
+                        sucesso: false,
+
                         erro:
                             "Pedido não encontrado."
 
                     });
             }
+
 
             res.json({
 
@@ -3058,6 +3454,8 @@ app.put(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao alterar status."
@@ -3099,6 +3497,7 @@ app.get(
                     `
                 );
 
+
             res.json({
 
                 sucesso: true,
@@ -3120,6 +3519,8 @@ app.get(
             res
                 .status(500)
                 .json({
+
+                    sucesso: false,
 
                     erro:
                         "Erro ao verificar novos pedidos."
@@ -3152,12 +3553,14 @@ app.get(
                     WHERE ativo = 1
                 `);
 
+
             const pedidos =
                 await query(`
                     SELECT
                         COUNT(*) AS total
                     FROM pedidos
                 `);
+
 
             const pedidosHoje =
                 await query(`
@@ -3166,6 +3569,7 @@ app.get(
                     FROM pedidos
                     WHERE criado_em >= CURRENT_DATE
                 `);
+
 
             const faturamento =
                 await query(`
@@ -3178,6 +3582,7 @@ app.get(
                     WHERE status != 'cancelado'
                 `);
 
+
             const novos =
                 await query(`
                     SELECT
@@ -3185,6 +3590,7 @@ app.get(
                     FROM pedidos
                     WHERE status = 'novo'
                 `);
+
 
             res.json({
 
@@ -3228,6 +3634,8 @@ app.get(
                 .status(500)
                 .json({
 
+                    sucesso: false,
+
                     erro:
                         "Erro ao buscar estatísticas."
 
@@ -3241,18 +3649,6 @@ app.get(
    RELATÓRIOS ADMINISTRATIVOS
 ========================================================= */
 
-/*
-   Esta rota retorna:
-
-   - Faturamento do dia
-   - Faturamento da semana
-   - Faturamento do mês
-   - Quantidade de pedidos
-   - Quantidade de produtos vendidos
-   - Faturamento total
-   - Produtos mais vendidos no mês
-*/
-
 app.get(
     "/api/admin/relatorios",
     exigirLogin,
@@ -3262,11 +3658,6 @@ app.get(
     ) {
 
         try {
-
-
-            /* =================================================
-               FATURAMENTO DO DIA
-            ================================================= */
 
             const faturamentoDia =
                 await query(`
@@ -3285,15 +3676,10 @@ app.get(
 
                     AND criado_em >= CURRENT_DATE
 
-                    AND criado_em <
-                        CURRENT_DATE +
+                    AND criado_em < CURRENT_DATE +
                         INTERVAL '1 day'
                 `);
 
-
-            /* =================================================
-               FATURAMENTO DA SEMANA
-            ================================================= */
 
             const faturamentoSemana =
                 await query(`
@@ -3325,10 +3711,6 @@ app.get(
                 `);
 
 
-            /* =================================================
-               FATURAMENTO DO MÊS
-            ================================================= */
-
             const faturamentoMes =
                 await query(`
                     SELECT
@@ -3359,10 +3741,6 @@ app.get(
                 `);
 
 
-            /* =================================================
-               FATURAMENTO TOTAL
-            ================================================= */
-
             const faturamentoTotal =
                 await query(`
                     SELECT
@@ -3379,10 +3757,6 @@ app.get(
                     WHERE status != 'cancelado'
                 `);
 
-
-            /* =================================================
-               PRODUTOS VENDIDOS HOJE
-            ================================================= */
 
             const produtosHoje =
                 await query(`
@@ -3407,10 +3781,6 @@ app.get(
                         INTERVAL '1 day'
                 `);
 
-
-            /* =================================================
-               PRODUTOS VENDIDOS NA SEMANA
-            ================================================= */
 
             const produtosSemana =
                 await query(`
@@ -3443,10 +3813,6 @@ app.get(
                 `);
 
 
-            /* =================================================
-               PRODUTOS VENDIDOS NO MÊS
-            ================================================= */
-
             const produtosMes =
                 await query(`
                     SELECT
@@ -3477,11 +3843,6 @@ app.get(
                         INTERVAL '1 month'
                 `);
 
-
-            /* =================================================
-               PRODUTOS MAIS VENDIDOS
-               MÊS ATUAL
-            ================================================= */
 
             const maisVendidos =
                 await query(`
@@ -3535,10 +3896,6 @@ app.get(
                     LIMIT 10
                 `);
 
-
-            /* =================================================
-               RESPOSTA
-            ================================================= */
 
             res.json({
 
@@ -3697,22 +4054,6 @@ app.get(
    RELATÓRIO POR PRODUTO
 ========================================================= */
 
-/*
-   GET:
-
-   /api/admin/relatorios/produtos
-
-   Retorna:
-
-   - Todos os produtos vendidos
-   - Produtos vendidos hoje
-   - Produtos vendidos na semana
-   - Produtos vendidos no mês
-   - Quantidade vendida
-   - Faturamento por produto
-   - Número de pedidos
-*/
-
 app.get(
     "/api/admin/relatorios/produtos",
     exigirLogin,
@@ -3722,11 +4063,6 @@ app.get(
     ) {
 
         try {
-
-
-            /* =================================================
-               TODOS OS PRODUTOS
-            ================================================= */
 
             const resultado =
                 await query(`
@@ -3770,10 +4106,6 @@ app.get(
                 `);
 
 
-            /* =================================================
-               PRODUTOS VENDIDOS HOJE
-            ================================================= */
-
             const hoje =
                 await query(`
                     SELECT
@@ -3815,10 +4147,6 @@ app.get(
                         quantidade_vendida DESC
                 `);
 
-
-            /* =================================================
-               PRODUTOS VENDIDOS NA SEMANA
-            ================================================= */
 
             const semana =
                 await query(`
@@ -3869,10 +4197,6 @@ app.get(
                 `);
 
 
-            /* =================================================
-               PRODUTOS VENDIDOS NO MÊS
-            ================================================= */
-
             const mes =
                 await query(`
                     SELECT
@@ -3922,10 +4246,6 @@ app.get(
                 `);
 
 
-            /* =================================================
-               FORMATAR PRODUTOS
-            ================================================= */
-
             function formatarProdutos(
                 lista
             ) {
@@ -3955,6 +4275,7 @@ app.get(
 
                         };
 
+
                         if (
                             produto.pedidos !==
                             undefined
@@ -3966,15 +4287,12 @@ app.get(
                                 );
                         }
 
+
                         return resultado;
                     }
                 );
             }
 
-
-            /* =================================================
-               RESPOSTA
-            ================================================= */
 
             res.json({
 
@@ -4041,6 +4359,7 @@ app.get(
                 "SELECT 1"
             );
 
+
             res.json({
 
                 status:
@@ -4055,6 +4374,12 @@ app.get(
             });
 
         } catch (erro) {
+
+            console.error(
+                "Health check:",
+                erro
+            );
+
 
             res
                 .status(503)
@@ -4097,11 +4422,14 @@ app.use(
                 .status(400)
                 .json({
 
+                    sucesso: false,
+
                     erro:
                         "A imagem deve ter no máximo 3 MB."
 
                 });
         }
+
 
         if (
             erro &&
@@ -4113,11 +4441,14 @@ app.use(
                 .status(400)
                 .json({
 
+                    sucesso: false,
+
                     erro:
                         erro.message
 
                 });
         }
+
 
         next(
             erro
@@ -4136,6 +4467,13 @@ app.use(
         req,
         res
     ) {
+
+        console.error(
+            "Rota da API não encontrada:",
+            req.method,
+            req.originalUrl
+        );
+
 
         res
             .status(404)
@@ -4168,6 +4506,7 @@ app.use(
             erro
         );
 
+
         if (
             res.headersSent
         ) {
@@ -4176,6 +4515,7 @@ app.use(
                 erro
             );
         }
+
 
         res
             .status(500)
@@ -4211,7 +4551,9 @@ async function iniciarServidor() {
             "========================================"
         );
 
+
         await inicializarBanco();
+
 
         app.listen(
             PORT,
@@ -4240,6 +4582,10 @@ async function iniciarServidor() {
 
                 console.log(
                     "Relatórios administrativos ativos."
+                );
+
+                console.log(
+                    "Rota POST /api/produtos ativa."
                 );
 
                 console.log(
@@ -4315,13 +4661,16 @@ async function encerrarServidor(
         `\nRecebido ${sinal}. Encerrando servidor...`
     );
 
+
     try {
 
         await pool.end();
 
+
         console.log(
             "Conexão com PostgreSQL encerrada."
         );
+
 
         process.exit(0);
 
@@ -4331,6 +4680,7 @@ async function encerrarServidor(
             "Erro ao encerrar:",
             erro
         );
+
 
         process.exit(1);
     }
