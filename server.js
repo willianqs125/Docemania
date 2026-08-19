@@ -3327,21 +3327,12 @@ app.post(
             }
 
 
-            if (
-                tipoEntrega ===
-                "entrega" &&
-                !endereco
-            ) {
+            /*
+            O endereço não é mais obrigatório no site.
 
-                return res
-                    .status(400)
-                    .json({
-
-                        erro:
-                            "Endereço é obrigatório para entrega."
-
-                    });
-            }
+            O cliente informa o endereço diretamente
+            pelo WhatsApp.
+            */
 
 
             let subtotal =
@@ -3479,73 +3470,14 @@ app.post(
                TAXA
             ================================================= */
 
+            /*
+            A taxa de entrega não é mais calculada
+            pelo site. O valor da entrega será combinado
+            diretamente pelo WhatsApp.
+            */
+
             let taxa =
                 0;
-
-
-            if (
-                tipoEntrega ===
-                "entrega"
-            ) {
-
-                if (!regiao) {
-
-                    return res
-                        .status(400)
-                        .json({
-
-                            erro:
-                                "Selecione uma região para entrega."
-
-                        });
-                }
-
-
-                const resultadoRegiao =
-                    await client.query(
-                        `
-                        SELECT
-
-                            id,
-
-                            nome,
-
-                            taxa
-
-                        FROM regioes
-
-                        WHERE nome = $1
-
-                        LIMIT 1
-                        `,
-                        [
-                            regiao
-                        ]
-                    );
-
-
-                if (
-                    resultadoRegiao.rows.length === 0
-                ) {
-
-                    return res
-                        .status(400)
-                        .json({
-
-                            erro:
-                                "Região de entrega não encontrada."
-
-                        });
-                }
-
-
-                taxa =
-                    Number(
-                        resultadoRegiao
-                            .rows[0]
-                            .taxa
-                    );
-            }
 
 
             /* =================================================

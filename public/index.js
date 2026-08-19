@@ -48,7 +48,14 @@ const adminArea =
 const abrirLoginAdmin =
     document.getElementById("abrirLoginAdmin");
 
+/*
+Seu HTML usa id="verproduto".
+Mantemos também compatibilidade caso exista
+id="verProdutos".
+*/
+
 const verProdutos =
+    document.getElementById("verproduto") ||
     document.getElementById("verProdutos");
 
 
@@ -331,6 +338,16 @@ const relatorioPedidosLista =
         "relatorioPedidosLista"
     );
 
+const relatorioTicketMedio =
+    document.getElementById(
+        "relatorioTicketMedio"
+    );
+
+const relatorioStatusLista =
+    document.getElementById(
+        "relatorioStatusLista"
+    );
+
 const reportFilters =
     document.querySelectorAll(".report-filter");
 
@@ -363,11 +380,11 @@ function escaparHTML(valor) {
     }
 
     return String(valor)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        .replaceAll("&", "&" + "amp;")
+        .replaceAll("<", "&" + "lt;")
+        .replaceAll(">", "&" + "gt;")
+        .replaceAll('"', "&" + "quot;")
+        .replaceAll("'", "&#" + "039;");
 }
 
 
@@ -377,26 +394,20 @@ function mostrarMensagem(
 ) {
 
     if (mensagemTitulo) {
-        mensagemTitulo.textContent =
-            titulo;
+        mensagemTitulo.textContent = titulo;
     }
 
     if (mensagemTexto) {
-        mensagemTexto.textContent =
-            texto;
+        mensagemTexto.textContent = texto;
     }
 
-    mensagemModal?.classList.remove(
-        "hidden"
-    );
+    mensagemModal?.classList.remove("hidden");
 }
 
 
 function fecharMensagemModal() {
 
-    mensagemModal?.classList.add(
-        "hidden"
-    );
+    mensagemModal?.classList.add("hidden");
 }
 
 
@@ -432,7 +443,6 @@ async function requisicao(
         dados = null;
     }
 
-
     if (!resposta.ok) {
 
         const mensagem =
@@ -442,7 +452,6 @@ async function requisicao(
 
         throw new Error(mensagem);
     }
-
 
     return dados;
 }
@@ -459,7 +468,7 @@ verProdutos?.addEventListener(
     () => {
 
         document
-            .getElementById("produtos")
+            .getElementById("produto")
             ?.scrollIntoView({
                 behavior: "smooth"
             });
@@ -483,11 +492,9 @@ async function carregarProdutos() {
                 "/produtos"
             );
 
-
         if (Array.isArray(resultado)) {
 
-            produtos =
-                resultado;
+            produtos = resultado;
 
         } else if (
             Array.isArray(resultado?.produtos)
@@ -515,11 +522,11 @@ async function carregarProdutos() {
             erro
         );
 
-
         if (productsGrid) {
 
             productsGrid.innerHTML = `
                 <div class="empty-state">
+
                     <h3>
                         Não foi possível carregar os produtos
                     </h3>
@@ -527,6 +534,7 @@ async function carregarProdutos() {
                     <p>
                         Tente novamente mais tarde.
                     </p>
+
                 </div>
             `;
         }
@@ -546,8 +554,13 @@ function renderizarProdutos() {
         return;
     }
 
+    const produtosAtivos =
+        produtos.filter(
+            produto =>
+                Number(produto.ativo) !== 0
+        );
 
-    if (!produtos.length) {
+    if (!produtosAtivos.length) {
 
         productsGrid.innerHTML = "";
 
@@ -558,34 +571,21 @@ function renderizarProdutos() {
         return;
     }
 
-
     emptyProducts?.classList.add(
         "hidden"
     );
 
-
     productsGrid.innerHTML =
-        produtos.map(
+        produtosAtivos.map(
             produto => {
 
                 const imagem =
                     produto.imagem ||
                     "https://via.placeholder.com/500x350?text=Docemania";
 
-
                 const categoria =
                     produto.categoria ||
                     "DOCE";
-
-
-                const ativo =
-                    Number(produto.ativo) !== 0;
-
-
-                if (!ativo) {
-                    return "";
-                }
-
 
                 return `
                     <article
@@ -638,7 +638,6 @@ function renderizarProdutos() {
             }
         ).join("");
 
-
     productsGrid
         .querySelectorAll(
             ".product-open-button"
@@ -677,24 +676,20 @@ function abrirProduto(id) {
                 Number(id)
         );
 
-
     if (!produto) {
         return;
     }
-
 
     produtoSelecionado =
         produto;
 
     quantidadeAtual = 1;
 
-
     if (quantidadeProduto) {
 
         quantidadeProduto.textContent =
             quantidadeAtual;
     }
-
 
     if (modalProductImage) {
 
@@ -706,7 +701,6 @@ function abrirProduto(id) {
             produto.nome || "Produto";
     }
 
-
     if (modalProductCategory) {
 
         modalProductCategory.textContent =
@@ -714,13 +708,11 @@ function abrirProduto(id) {
             "DOCE";
     }
 
-
     if (modalProductName) {
 
         modalProductName.textContent =
             produto.nome || "";
     }
-
 
     if (modalProductDescription) {
 
@@ -728,9 +720,7 @@ function abrirProduto(id) {
             produto.descricao || "";
     }
 
-
     atualizarTotalProduto();
-
 
     produtoModal?.classList.remove(
         "hidden"
@@ -750,8 +740,7 @@ function fecharModalProduto() {
         "hidden"
     );
 
-    produtoSelecionado =
-        null;
+    produtoSelecionado = null;
 }
 
 
@@ -775,16 +764,13 @@ diminuirQuantidade?.addEventListener(
             return;
         }
 
-
         quantidadeAtual--;
-
 
         if (quantidadeProduto) {
 
             quantidadeProduto.textContent =
                 quantidadeAtual;
         }
-
 
         atualizarTotalProduto();
     }
@@ -797,13 +783,11 @@ aumentarQuantidade?.addEventListener(
 
         quantidadeAtual++;
 
-
         if (quantidadeProduto) {
 
             quantidadeProduto.textContent =
                 quantidadeAtual;
         }
-
 
         atualizarTotalProduto();
     }
@@ -816,13 +800,11 @@ function atualizarTotalProduto() {
         return;
     }
 
-
     const total =
         Number(
             produtoSelecionado.preco || 0
         ) *
         quantidadeAtual;
-
 
     if (modalProductTotal) {
 
@@ -844,14 +826,12 @@ function adicionarProdutoCarrinho() {
         return;
     }
 
-
     const existente =
         carrinho.find(
             item =>
                 Number(item.produto_id) ===
                 Number(produtoSelecionado.id)
         );
-
 
     if (existente) {
 
@@ -877,7 +857,6 @@ function adicionarProdutoCarrinho() {
                 quantidadeAtual
         });
     }
-
 
     atualizarCarrinho();
 
@@ -905,7 +884,6 @@ function atualizarCarrinho() {
         return;
     }
 
-
     if (!carrinho.length) {
 
         cartItems.innerHTML = `
@@ -926,28 +904,20 @@ function atualizarCarrinho() {
             </div>
         `;
 
-
         if (cartTotal) {
-
             cartTotal.textContent =
                 dinheiro(0);
         }
 
-
         if (cartCount) {
-
-            cartCount.textContent =
-                "0";
+            cartCount.textContent = "0";
         }
-
 
         return;
     }
 
-
     let total = 0;
     let quantidadeTotal = 0;
-
 
     cartItems.innerHTML =
         carrinho.map(
@@ -957,12 +927,10 @@ function atualizarCarrinho() {
                     Number(item.preco || 0) *
                     Number(item.quantidade || 0);
 
-
                 total += subtotal;
 
                 quantidadeTotal +=
                     Number(item.quantidade || 0);
-
 
                 return `
                     <div class="cart-item">
@@ -1003,20 +971,17 @@ function atualizarCarrinho() {
             }
         ).join("");
 
-
     if (cartTotal) {
 
         cartTotal.textContent =
             dinheiro(total);
     }
 
-
     if (cartCount) {
 
         cartCount.textContent =
             quantidadeTotal;
     }
-
 
     cartItems
         .querySelectorAll(
@@ -1034,12 +999,10 @@ function atualizarCarrinho() {
                                 botao.dataset.index
                             );
 
-
                         carrinho.splice(
                             indice,
                             1
                         );
-
 
                         atualizarCarrinho();
                     }
@@ -1057,25 +1020,17 @@ ABRIR / FECHAR CARRINHO
 
 function abrirCarrinhoPainel() {
 
-    cart?.classList.add(
-        "open"
-    );
+    cart?.classList.add("open");
 
-    cartOverlay?.classList.remove(
-        "hidden"
-    );
+    cartOverlay?.classList.remove("hidden");
 }
 
 
 function fecharCarrinhoPainel() {
 
-    cart?.classList.remove(
-        "open"
-    );
+    cart?.classList.remove("open");
 
-    cartOverlay?.classList.add(
-        "hidden"
-    );
+    cartOverlay?.classList.add("hidden");
 }
 
 
@@ -1103,6 +1058,14 @@ TIPO DE ENTREGA
 =========================================================
 */
 
+/*
+IMPORTANTE:
+
+Agora DELIVERY e RETIRADA NÃO pedem endereço.
+
+A localização será combinada diretamente pelo WhatsApp.
+*/
+
 deliveryButtons.forEach(
     botao => {
 
@@ -1119,38 +1082,27 @@ deliveryButtons.forEach(
                     }
                 );
 
-
                 botao.classList.add(
                     "active"
                 );
-
 
                 tipoEntregaAtual =
                     botao.dataset.tipo ||
                     "entrega";
 
+                /*
+                Não mostramos mais o campo
+                de endereço para nenhum dos dois.
+                */
 
-                if (
-                    tipoEntregaAtual ===
-                    "entrega"
-                ) {
+                campoEndereco?.classList.add(
+                    "hidden"
+                );
 
-                    campoEndereco?.classList.remove(
-                        "hidden"
-                    );
+                if (enderecoCliente) {
 
-                } else {
-
-                    campoEndereco?.classList.add(
-                        "hidden"
-                    );
-
-
-                    if (enderecoCliente) {
-
-                        enderecoCliente.value =
-                            "";
-                    }
+                    enderecoCliente.value =
+                        "";
                 }
             }
         );
@@ -1185,13 +1137,11 @@ formaPagamento?.addEventListener(
                 "hidden"
             );
 
-
             if (valorPagamento) {
 
                 valorPagamento.value =
                     "";
             }
-
 
             if (trocoTexto) {
 
@@ -1240,7 +1190,6 @@ function atualizarTroco() {
         return;
     }
 
-
     if (
         formaPagamento.value !==
         "dinheiro"
@@ -1248,25 +1197,20 @@ function atualizarTroco() {
         return;
     }
 
-
     const total =
         calcularTotalCarrinho();
-
 
     const pago =
         Number(
             valorPagamento?.value || 0
         );
 
-
     const troco =
         pago - total;
-
 
     if (!trocoTexto) {
         return;
     }
-
 
     if (pago <= 0) {
 
@@ -1275,7 +1219,6 @@ function atualizarTroco() {
 
         return;
     }
-
 
     if (troco >= 0) {
 
@@ -1315,9 +1258,7 @@ function abrirCheckout() {
         return;
     }
 
-
     fecharCarrinhoPainel();
-
 
     if (checkoutTotal) {
 
@@ -1327,6 +1268,14 @@ function abrirCheckout() {
             );
     }
 
+    /*
+    Delivery e retirada começam
+    sem endereço.
+    */
+
+    campoEndereco?.classList.add(
+        "hidden"
+    );
 
     checkoutModal?.classList.remove(
         "hidden"
@@ -1371,21 +1320,13 @@ async function finalizarPedidoWhatsApp() {
             nomeCliente?.value.trim() ||
             "";
 
-
         const telefone =
             telefoneCliente?.value.trim() ||
             "";
 
-
-        const endereco =
-            enderecoCliente?.value.trim() ||
-            "";
-
-
         const forma =
             formaPagamento?.value ||
             "";
-
 
         const observacaoTexto =
             observacao?.value.trim() ||
@@ -1397,7 +1338,6 @@ async function finalizarPedidoWhatsApp() {
         VALIDAÇÕES
         -------------------------------------------------
         */
-
 
         if (!nome) {
 
@@ -1411,24 +1351,6 @@ async function finalizarPedidoWhatsApp() {
             return;
         }
 
-
-        if (
-            tipoEntregaAtual ===
-            "entrega" &&
-            !endereco
-        ) {
-
-            mostrarMensagem(
-                "Endereço obrigatório",
-                "Digite o endereço para entrega."
-            );
-
-            enderecoCliente?.focus();
-
-            return;
-        }
-
-
         if (!forma) {
 
             mostrarMensagem(
@@ -1441,16 +1363,13 @@ async function finalizarPedidoWhatsApp() {
             return;
         }
 
-
         const total =
             calcularTotalCarrinho();
-
 
         const valorPago =
             Number(
                 valorPagamento?.value || 0
             );
-
 
         if (
             forma === "dinheiro" &&
@@ -1507,11 +1426,14 @@ async function finalizarPedidoWhatsApp() {
             telefone:
                 telefone,
 
+            /*
+            Não enviamos endereço porque
+            a localização será combinada
+            pelo WhatsApp.
+            */
+
             endereco:
-                tipoEntregaAtual ===
-                "entrega"
-                    ? endereco
-                    : "",
+                "",
 
             tipo_entrega:
                 tipoEntregaAtual,
@@ -1538,12 +1460,14 @@ async function finalizarPedidoWhatsApp() {
         };
 
 
-        enviarWhatsApp.disabled =
-            true;
+        if (enviarWhatsApp) {
 
+            enviarWhatsApp.disabled =
+                true;
 
-        enviarWhatsApp.textContent =
-            "Enviando...";
+            enviarWhatsApp.textContent =
+                "Enviando...";
+        }
 
 
         /*
@@ -1579,10 +1503,8 @@ async function finalizarPedidoWhatsApp() {
         let mensagem =
             "🍰 *NOVO PEDIDO - DOCEMANIA*\n\n";
 
-
         mensagem +=
             `👤 Cliente: ${nome}\n`;
-
 
         if (telefone) {
 
@@ -1591,14 +1513,9 @@ async function finalizarPedidoWhatsApp() {
         }
 
 
-        mensagem +=
-            `📦 Tipo: ${
-                tipoEntregaAtual ===
-                "entrega"
-                    ? "Entrega"
-                    : "Retirada"
-            }\n`;
-
+        /*
+        TIPO DO PEDIDO
+        */
 
         if (
             tipoEntregaAtual ===
@@ -1606,7 +1523,15 @@ async function finalizarPedidoWhatsApp() {
         ) {
 
             mensagem +=
-                `📍 Endereço: ${endereco}\n`;
+                "🚚 *Forma de recebimento: Entrega*\n";
+
+            mensagem +=
+                "📍 Endereço: informar pelo WhatsApp\n";
+
+        } else {
+
+            mensagem +=
+                "🛍️ *Forma de recebimento: Retirada*\n";
         }
 
 
@@ -1617,7 +1542,6 @@ async function finalizarPedidoWhatsApp() {
                 )
             }\n`;
 
-
         if (
             forma === "dinheiro"
         ) {
@@ -1626,7 +1550,6 @@ async function finalizarPedidoWhatsApp() {
                 `💵 Recebido: ${dinheiro(
                     valorPago
                 )}\n`;
-
 
             mensagem +=
                 `💰 Troco: ${dinheiro(
@@ -1637,7 +1560,6 @@ async function finalizarPedidoWhatsApp() {
 
         mensagem +=
             "\n*ITENS DO PEDIDO:*\n";
-
 
         carrinho.forEach(
             item => {
@@ -1652,17 +1574,21 @@ async function finalizarPedidoWhatsApp() {
             }
         );
 
-
         if (observacaoTexto) {
 
             mensagem +=
                 `\n📝 Observação: ${observacaoTexto}\n`;
         }
 
-
         mensagem +=
             `\n💰 *TOTAL: ${dinheiro(total)}*`;
 
+
+        /*
+        -------------------------------------------------
+        WHATSAPP
+        -------------------------------------------------
+        */
 
         const url =
             "https://wa.me/" +
@@ -1671,7 +1597,6 @@ async function finalizarPedidoWhatsApp() {
             encodeURIComponent(
                 mensagem
             );
-
 
         window.open(
             url,
@@ -1689,46 +1614,37 @@ async function finalizarPedidoWhatsApp() {
 
         atualizarCarrinho();
 
-
         checkoutModal?.classList.add(
             "hidden"
         );
-
 
         if (nomeCliente) {
             nomeCliente.value = "";
         }
 
-
         if (telefoneCliente) {
             telefoneCliente.value = "";
         }
-
 
         if (enderecoCliente) {
             enderecoCliente.value = "";
         }
 
-
         if (formaPagamento) {
             formaPagamento.value = "";
         }
-
 
         if (valorPagamento) {
             valorPagamento.value = "";
         }
 
-
         if (observacao) {
             observacao.value = "";
         }
 
-
         campoTroco?.classList.add(
             "hidden"
         );
-
 
         if (trocoTexto) {
 
@@ -1737,9 +1653,31 @@ async function finalizarPedidoWhatsApp() {
         }
 
 
+        /*
+        Voltar para Entrega como padrão
+        */
+
+        tipoEntregaAtual =
+            "entrega";
+
+        deliveryButtons.forEach(
+            botao => {
+
+                botao.classList.toggle(
+                    "active",
+                    botao.dataset.tipo ===
+                    "entrega"
+                );
+            }
+        );
+
+        campoEndereco?.classList.add(
+            "hidden"
+        );
+
         mostrarMensagem(
             "Pedido enviado!",
-            "Seu pedido foi registrado e o WhatsApp foi aberto."
+            "Seu pedido foi registrado e o WhatsApp foi aberto. O endereço da entrega será informado pelo WhatsApp."
         );
 
 
@@ -1764,7 +1702,6 @@ async function finalizarPedidoWhatsApp() {
             "Erro ao finalizar pedido:",
             erro
         );
-
 
         mostrarMensagem(
             "Erro",
@@ -1814,7 +1751,7 @@ function nomeFormaPagamento(
             return "Cartão";
 
         default:
-            return valor;
+            return valor || "Não informado";
     }
 }
 
@@ -1854,7 +1791,6 @@ async function fazerLoginAdmin() {
     const senha =
         senhaAdmin?.value || "";
 
-
     if (!senha) {
 
         mostrarMensagem(
@@ -1867,23 +1803,13 @@ async function fazerLoginAdmin() {
         return;
     }
 
-
     try {
 
         entrarAdmin.disabled =
             true;
 
-
         entrarAdmin.textContent =
             "Entrando...";
-
-
-        /*
-        O HTML atual só possui senha.
-        O backend original trabalhava com
-        usuário + senha, então usamos
-        USUARIO_ADMIN configurado no início.
-        */
 
         const resultado =
             await requisicao(
@@ -1908,7 +1834,6 @@ async function fazerLoginAdmin() {
                 }
             );
 
-
         if (
             resultado?.sucesso ||
             resultado?.usuario
@@ -1918,13 +1843,11 @@ async function fazerLoginAdmin() {
                 "hidden"
             );
 
-
             if (senhaAdmin) {
 
                 senhaAdmin.value =
                     "";
             }
-
 
             await entrarNoPainel();
 
@@ -1942,7 +1865,6 @@ async function fazerLoginAdmin() {
             "Erro no login:",
             erro
         );
-
 
         mostrarMensagem(
             "Não foi possível entrar",
@@ -1997,11 +1919,9 @@ async function entrarNoPainel() {
         "hidden"
     );
 
-
     adminArea?.classList.remove(
         "hidden"
     );
-
 
     await carregarProdutos();
 
@@ -2036,33 +1956,27 @@ sairAdmin?.addEventListener(
             );
         }
 
-
         adminArea?.classList.add(
             "hidden"
         );
-
 
         clienteArea?.classList.remove(
             "hidden"
         );
 
-
         loginModal?.classList.add(
             "hidden"
         );
 
-
         adminProductModal?.classList.add(
             "hidden"
         );
-
 
         if (senhaAdmin) {
 
             senhaAdmin.value =
                 "";
         }
-
 
         mostrarMensagem(
             "Sessão encerrada",
@@ -2086,55 +2000,35 @@ function limparFormularioProduto() {
     imagemAtualProduto =
         "";
 
-
     if (adminProductModalTitle) {
 
         adminProductModalTitle.textContent =
             "Novo produto";
     }
 
-
     if (productName) {
-
-        productName.value =
-            "";
+        productName.value = "";
     }
-
 
     if (productCategory) {
-
-        productCategory.value =
-            "";
+        productCategory.value = "";
     }
-
 
     if (productDescription) {
-
-        productDescription.value =
-            "";
+        productDescription.value = "";
     }
-
 
     if (productPrice) {
-
-        productPrice.value =
-            "";
+        productPrice.value = "";
     }
-
 
     if (productImageFile) {
-
-        productImageFile.value =
-            "";
+        productImageFile.value = "";
     }
-
 
     if (imagePreview) {
-
-        imagePreview.src =
-            "";
+        imagePreview.src = "";
     }
-
 
     imagePreviewContainer?.classList.add(
         "hidden"
@@ -2148,11 +2042,9 @@ abrirCadastroProduto?.addEventListener(
 
         limparFormularioProduto();
 
-
         adminProductModal?.classList.remove(
             "hidden"
         );
-
 
         productName?.focus();
     }
@@ -2189,12 +2081,9 @@ productImageFile?.addEventListener(
         const arquivo =
             productImageFile.files?.[0];
 
-
         if (!arquivo) {
-
             return;
         }
-
 
         if (
             !arquivo.type.startsWith(
@@ -2207,31 +2096,25 @@ productImageFile?.addEventListener(
                 "Selecione um arquivo de imagem."
             );
 
-
             productImageFile.value =
                 "";
 
-
             return;
         }
-
 
         const url =
             URL.createObjectURL(
                 arquivo
             );
 
-
         imagemAtualProduto =
             "";
-
 
         if (imagePreview) {
 
             imagePreview.src =
                 url;
         }
-
 
         imagePreviewContainer?.classList.remove(
             "hidden"
@@ -2256,17 +2139,14 @@ removeProductImage?.addEventListener(
                 "";
         }
 
-
         if (imagePreview) {
 
             imagePreview.src =
                 "";
         }
 
-
         imagemAtualProduto =
             "";
-
 
         imagePreviewContainer?.classList.add(
             "hidden"
@@ -2287,33 +2167,26 @@ function renderizarProdutosAdmin() {
         return;
     }
 
-
     if (totalProdutos) {
 
         totalProdutos.textContent =
             produtos.length;
     }
 
-
     if (!produtos.length) {
 
-        adminProducts.innerHTML =
-            "";
-
+        adminProducts.innerHTML = "";
 
         emptyAdminProducts?.classList.remove(
             "hidden"
         );
 
-
         return;
     }
-
 
     emptyAdminProducts?.classList.add(
         "hidden"
     );
-
 
     adminProducts.innerHTML =
         produtos.map(
@@ -2323,10 +2196,8 @@ function renderizarProdutosAdmin() {
                     produto.imagem ||
                     "https://via.placeholder.com/300x200?text=Docemania";
 
-
                 const ativo =
                     Number(produto.ativo) !== 0;
-
 
                 return `
                     <div
@@ -2400,7 +2271,6 @@ function renderizarProdutosAdmin() {
             }
         ).join("");
 
-
     adminProducts
         .querySelectorAll(
             ".edit-product"
@@ -2421,7 +2291,6 @@ function renderizarProdutosAdmin() {
                 );
             }
         );
-
 
     adminProducts
         .querySelectorAll(
@@ -2463,19 +2332,15 @@ function abrirEdicaoProduto(
                 Number(id)
         );
 
-
     if (!produto) {
         return;
     }
 
-
     produtoEditandoId =
         produto.id;
 
-
     imagemAtualProduto =
         produto.imagem || "";
-
 
     if (adminProductModalTitle) {
 
@@ -2483,13 +2348,11 @@ function abrirEdicaoProduto(
             "Editar produto";
     }
 
-
     if (productName) {
 
         productName.value =
             produto.nome || "";
     }
-
 
     if (productCategory) {
 
@@ -2497,13 +2360,11 @@ function abrirEdicaoProduto(
             produto.categoria || "";
     }
 
-
     if (productDescription) {
 
         productDescription.value =
             produto.descricao || "";
     }
-
 
     if (productPrice) {
 
@@ -2511,13 +2372,11 @@ function abrirEdicaoProduto(
             produto.preco || "";
     }
 
-
     if (productImageFile) {
 
         productImageFile.value =
             "";
     }
-
 
     if (produto.imagem) {
 
@@ -2526,7 +2385,6 @@ function abrirEdicaoProduto(
             imagePreview.src =
                 produto.imagem;
         }
-
 
         imagePreviewContainer?.classList.remove(
             "hidden"
@@ -2540,12 +2398,10 @@ function abrirEdicaoProduto(
                 "";
         }
 
-
         imagePreviewContainer?.classList.add(
             "hidden"
         );
     }
-
 
     adminProductModal?.classList.remove(
         "hidden"
@@ -2561,28 +2417,33 @@ SALVAR PRODUTO
 
 async function salvarProdutoAdmin() {
 
+    /*
+    Guarda isso antes de limpar o formulário.
+    */
+
+    const estavaEditando =
+        Boolean(
+            produtoEditandoId
+        );
+
     try {
 
         const nome =
             productName?.value.trim() ||
             "";
 
-
         const categoria =
             productCategory?.value.trim() ||
             "";
-
 
         const descricao =
             productDescription?.value.trim() ||
             "";
 
-
         const preco =
             Number(
                 productPrice?.value
             );
-
 
         if (!nome) {
 
@@ -2595,7 +2456,6 @@ async function salvarProdutoAdmin() {
 
             return;
         }
-
 
         if (
             !Number.isFinite(preco) ||
@@ -2612,28 +2472,23 @@ async function salvarProdutoAdmin() {
             return;
         }
 
-
         const formData =
             new FormData();
-
 
         formData.append(
             "nome",
             nome
         );
 
-
         formData.append(
             "categoria",
             categoria
         );
 
-
         formData.append(
             "descricao",
             descricao
         );
-
 
         formData.append(
             "preco",
@@ -2657,91 +2512,47 @@ async function salvarProdutoAdmin() {
             );
         }
 
-
         salvarProduto.disabled =
             true;
-
 
         salvarProduto.textContent =
             "Salvando...";
 
+        if (estavaEditando) {
 
-        let resultado;
-
-
-        if (produtoEditandoId) {
-
-            resultado =
-                await requisicao(
-                    `/produto/${produtoEditandoId}`,
-                    {
-                        method: "PUT",
-                        body: formData
-                    }
-                );
-
-        } else {
-
-            resultado =
-                await requisicao(
-                    "/produto",
-                    {
-                        method: "POST",
-                        body: formData
-                    }
-                );
-        }
-
-
-        if (
-            resultado?.sucesso ||
-            resultado?.produto ||
-            resultado?.id
-        ) {
-
-            adminProductModal?.classList.add(
-                "hidden"
-            );
-
-
-            limparFormularioProduto();
-
-
-            await carregarProdutos();
-
-
-            mostrarMensagem(
-                "Tudo certo!",
-                produtoEditandoId
-                    ? "Produto atualizado com sucesso."
-                    : "Produto criado com sucesso."
+            await requisicao(
+                `/produto/${produtoEditandoId}`,
+                {
+                    method: "PUT",
+                    body: formData
+                }
             );
 
         } else {
 
-            /*
-            Mesmo que o backend retorne
-            o produto diretamente, consideramos
-            a operação concluída quando não
-            houver erro HTTP.
-            */
-
-            adminProductModal?.classList.add(
-                "hidden"
-            );
-
-
-            limparFormularioProduto();
-
-
-            await carregarProdutos();
-
-
-            mostrarMensagem(
-                "Tudo certo!",
-                "Produto salvo com sucesso."
+            await requisicao(
+                "/produto",
+                {
+                    method: "POST",
+                    body: formData
+                }
             );
         }
+
+        adminProductModal?.classList.add(
+            "hidden"
+        );
+
+        limparFormularioProduto();
+
+        await carregarProdutos();
+
+        mostrarMensagem(
+            "Tudo certo!",
+            estavaEditando
+                ? "Produto atualizado com sucesso."
+                : "Produto criado com sucesso."
+        );
 
     } catch (erro) {
 
@@ -2749,7 +2560,6 @@ async function salvarProdutoAdmin() {
             "Erro ao salvar produto:",
             erro
         );
-
 
         if (
             erro.message ===
@@ -2760,20 +2570,16 @@ async function salvarProdutoAdmin() {
                 "hidden"
             );
 
-
             clienteArea?.classList.remove(
                 "hidden"
             );
-
 
             loginModal?.classList.remove(
                 "hidden"
             );
 
-
             return;
         }
-
 
         mostrarMensagem(
             "Erro ao salvar",
@@ -2818,22 +2624,18 @@ async function excluirProduto(
                 Number(id)
         );
 
-
     if (!produto) {
         return;
     }
-
 
     const confirmar =
         confirm(
             `Deseja realmente excluir "${produto.nome}"?`
         );
 
-
     if (!confirmar) {
         return;
     }
-
 
     try {
 
@@ -2844,9 +2646,7 @@ async function excluirProduto(
             }
         );
 
-
         await carregarProdutos();
-
 
         mostrarMensagem(
             "Produto excluído",
@@ -2859,7 +2659,6 @@ async function excluirProduto(
             "Erro ao excluir produto:",
             erro
         );
-
 
         mostrarMensagem(
             "Erro",
@@ -2901,7 +2700,6 @@ async function carregarPedidos() {
                 "/pedidos"
             );
 
-
         if (Array.isArray(resultado)) {
 
             pedidos =
@@ -2919,27 +2717,18 @@ async function carregarPedidos() {
             pedidos = [];
         }
 
-
         atualizarEstatisticasPedidos();
 
         atualizarRelatorio();
 
     } catch (erro) {
 
-        /*
-        O sistema continua funcionando
-        mesmo que a API não disponibilize
-        GET /pedidos.
-        */
-
         console.warn(
             "Não foi possível carregar pedidos:",
             erro.message
         );
 
-
         pedidos = [];
-
 
         atualizarEstatisticasPedidos();
 
@@ -2950,7 +2739,7 @@ async function carregarPedidos() {
 
 /*
 =========================================================
-NORMALIZAR DATA
+DATA DOS PEDIDOS
 =========================================================
 */
 
@@ -2977,10 +2766,8 @@ function converterData(
         return null;
     }
 
-
     const data =
         new Date(valor);
-
 
     if (
         Number.isNaN(
@@ -2991,8 +2778,113 @@ function converterData(
         return null;
     }
 
-
     return data;
+}
+
+
+/*
+=========================================================
+INÍCIO DO DIA
+=========================================================
+*/
+
+function inicioDoDia(
+    data = new Date()
+) {
+
+    const resultado =
+        new Date(data);
+
+    resultado.setHours(
+        0,
+        0,
+        0,
+        0
+    );
+
+    return resultado;
+}
+
+
+/*
+=========================================================
+INÍCIO DA SEMANA
+=========================================================
+*/
+
+/*
+A semana começa na segunda-feira.
+*/
+
+function inicioDaSemana(
+    data = new Date()
+) {
+
+    const resultado =
+        inicioDoDia(data);
+
+    const diaSemana =
+        resultado.getDay();
+
+    /*
+    JavaScript:
+    domingo = 0
+    segunda = 1
+    terça = 2
+    ...
+    */
+
+    const distanciaParaSegunda =
+        diaSemana === 0
+            ? 6
+            : diaSemana - 1;
+
+    resultado.setDate(
+        resultado.getDate() -
+        distanciaParaSegunda
+    );
+
+    return resultado;
+}
+
+
+/*
+=========================================================
+INÍCIO DO MÊS
+=========================================================
+*/
+
+function inicioDoMes(
+    data = new Date()
+) {
+
+    const resultado =
+        inicioDoDia(data);
+
+    resultado.setDate(1);
+
+    return resultado;
+}
+
+
+/*
+=========================================================
+INÍCIO DOS ÚLTIMOS 30 DIAS
+=========================================================
+*/
+
+function inicioDosUltimos30Dias(
+    data = new Date()
+) {
+
+    const resultado =
+        inicioDoDia(data);
+
+    resultado.setDate(
+        resultado.getDate() - 29
+    );
+
+    return resultado;
 }
 
 
@@ -3010,71 +2902,82 @@ function filtrarPedidosPorPeriodo(
     const agora =
         new Date();
 
+    let inicio;
 
-    const inicio =
-        new Date(agora);
+    switch (periodo) {
 
+        /*
+        ---------------------------------------------
+        HOJE
+        ---------------------------------------------
+        */
 
-    inicio.setHours(
-        0,
-        0,
-        0,
-        0
-    );
+        case "hoje":
 
-
-    if (periodo === "hoje") {
-
-        return lista.filter(
-            pedido => {
-
-                const data =
-                    converterData(
-                        obterDataPedido(
-                            pedido
-                        )
-                    );
-
-
-                if (!data) {
-                    return false;
-                }
-
-
-                return (
-                    data >= inicio
+            inicio =
+                inicioDoDia(
+                    agora
                 );
-            }
-        );
+
+            break;
+
+
+        /*
+        ---------------------------------------------
+        ESTA SEMANA
+        Segunda até hoje
+        ---------------------------------------------
+        */
+
+        case "7dias":
+
+            inicio =
+                inicioDaSemana(
+                    agora
+                );
+
+            break;
+
+
+        /*
+        ---------------------------------------------
+        ESTE MÊS
+        ---------------------------------------------
+        */
+
+        case "mes":
+
+            inicio =
+                inicioDoMes(
+                    agora
+                );
+
+            break;
+
+
+        /*
+        ---------------------------------------------
+        ÚLTIMOS 30 DIAS
+        ---------------------------------------------
+        */
+
+        case "30dias":
+
+            inicio =
+                inicioDosUltimos30Dias(
+                    agora
+                );
+
+            break;
+
+
+        default:
+
+            inicio =
+                inicioDoDia(
+                    agora
+                );
     }
-
-
-    if (
-        periodo ===
-        "7dias"
-    ) {
-
-        inicio.setDate(
-            inicio.getDate() - 6
-        );
-
-    } else if (
-        periodo ===
-        "mes"
-    ) {
-
-        inicio.setDate(1);
-
-    } else if (
-        periodo ===
-        "30dias"
-    ) {
-
-        inicio.setDate(
-            inicio.getDate() - 29
-        );
-    }
-
 
     return lista.filter(
         pedido => {
@@ -3086,14 +2989,13 @@ function filtrarPedidosPorPeriodo(
                     )
                 );
 
-
             if (!data) {
                 return false;
             }
 
-
             return (
-                data >= inicio
+                data >= inicio &&
+                data <= agora
             );
         }
     );
@@ -3111,7 +3013,8 @@ function obterTotalPedido(
 ) {
 
     if (
-        pedido.total !== undefined
+        pedido.total !== undefined &&
+        pedido.total !== null
     ) {
 
         return Number(
@@ -3119,9 +3022,9 @@ function obterTotalPedido(
         );
     }
 
-
     if (
-        pedido.valor_total !== undefined
+        pedido.valor_total !== undefined &&
+        pedido.valor_total !== null
     ) {
 
         return Number(
@@ -3129,9 +3032,9 @@ function obterTotalPedido(
         );
     }
 
-
     if (
-        pedido.total_pedido !== undefined
+        pedido.total_pedido !== undefined &&
+        pedido.total_pedido !== null
     ) {
 
         return Number(
@@ -3139,14 +3042,14 @@ function obterTotalPedido(
         );
     }
 
+    const itens =
+        obterItensPedido(
+            pedido
+        );
 
-    if (
-        Array.isArray(
-            pedido.itens
-        )
-    ) {
+    if (itens.length) {
 
-        return pedido.itens.reduce(
+        return itens.reduce(
             (
                 total,
                 item
@@ -3165,7 +3068,6 @@ function obterTotalPedido(
             0
         );
     }
-
 
     return 0;
 }
@@ -3190,7 +3092,6 @@ function obterItensPedido(
         return pedido.itens;
     }
 
-
     if (
         Array.isArray(
             pedido.items
@@ -3200,6 +3101,19 @@ function obterItensPedido(
         return pedido.items;
     }
 
+    /*
+    Algumas APIs podem retornar
+    os itens em uma propriedade diferente.
+    */
+
+    if (
+        Array.isArray(
+            pedido.produtos
+        )
+    ) {
+
+        return pedido.produtos;
+    }
 
     return [];
 }
@@ -3219,14 +3133,11 @@ function atualizarEstatisticasPedidos() {
             "hoje"
         );
 
-
     let faturamento =
         0;
 
-
     let itensVendidos =
         0;
-
 
     pedidosHoje.forEach(
         pedido => {
@@ -3236,12 +3147,10 @@ function atualizarEstatisticasPedidos() {
                     pedido
                 );
 
-
             const itens =
                 obterItensPedido(
                     pedido
                 );
-
 
             itens.forEach(
                 item => {
@@ -3256,13 +3165,11 @@ function atualizarEstatisticasPedidos() {
         }
     );
 
-
     if (totalPedidosHoje) {
 
         totalPedidosHoje.textContent =
             pedidosHoje.length;
     }
-
 
     if (faturamentoHoje) {
 
@@ -3271,7 +3178,6 @@ function atualizarEstatisticasPedidos() {
                 faturamento
             );
     }
-
 
     if (produtosVendidosHoje) {
 
@@ -3293,6 +3199,12 @@ async function carregarRelatorios() {
 }
 
 
+/*
+=========================================================
+ATUALIZAR RELATÓRIO
+=========================================================
+*/
+
 function atualizarRelatorio() {
 
     const lista =
@@ -3301,21 +3213,20 @@ function atualizarRelatorio() {
             periodoRelatorioAtual
         );
 
-
     let faturamento =
         0;
 
-
-    let itens =
+    let itensVendidos =
         0;
 
-
-    const ranking =
-        {};
-
+    const ranking = {};
 
     lista.forEach(
         pedido => {
+
+            /*
+            FATURAMENTO
+            */
 
             faturamento +=
                 obterTotalPedido(
@@ -3323,11 +3234,14 @@ function atualizarRelatorio() {
                 );
 
 
+            /*
+            ITENS
+            */
+
             const itensPedido =
                 obterItensPedido(
                     pedido
                 );
-
 
             itensPedido.forEach(
                 item => {
@@ -3338,42 +3252,49 @@ function atualizarRelatorio() {
                             0
                         );
 
+                    const preco =
+                        Number(
+                            item.preco ||
+                            0
+                        );
 
-                    itens +=
+                    itensVendidos +=
                         quantidade;
-
 
                     const nome =
                         item.nome_produto ||
                         item.nome ||
                         "Produto";
 
-
                     if (
                         !ranking[nome]
                     ) {
 
                         ranking[nome] = {
-                            quantidade: 0,
-                            faturamento: 0
+
+                            quantidade:
+                                0,
+
+                            faturamento:
+                                0
                         };
                     }
-
 
                     ranking[nome].quantidade +=
                         quantidade;
 
-
                     ranking[nome].faturamento +=
-                        Number(
-                            item.preco || 0
-                        ) *
+                        preco *
                         quantidade;
                 }
             );
         }
     );
 
+
+    /*
+    ATUALIZA CARDS
+    */
 
     if (relatorioFaturamento) {
 
@@ -3383,27 +3304,57 @@ function atualizarRelatorio() {
             );
     }
 
-
     if (relatorioPedidos) {
 
         relatorioPedidos.textContent =
             lista.length;
     }
 
-
     if (relatorioItens) {
 
         relatorioItens.textContent =
-            itens;
+            itensVendidos;
     }
 
+    /*
+    TICKET MÉDIO
+    */
+
+    if (relatorioTicketMedio) {
+
+        const ticketMedio =
+            lista.length > 0
+                ? faturamento / lista.length
+                : 0;
+
+        relatorioTicketMedio.textContent =
+            dinheiro(ticketMedio);
+    }
+
+
+    /*
+    RANKING
+    */
 
     renderizarRanking(
         ranking
     );
 
 
+    /*
+    PEDIDOS
+    */
+
     renderizarPedidosRecentes(
+        lista
+    );
+
+
+    /*
+    STATUS DOS PEDIDOS
+    */
+
+    renderizarStatusPedidos(
         lista
     );
 }
@@ -3423,7 +3374,6 @@ function renderizarRanking(
         return;
     }
 
-
     const produtosRanking =
         Object.entries(
             ranking
@@ -3432,11 +3382,34 @@ function renderizarRanking(
             (
                 a,
                 b
-            ) =>
-                b[1].quantidade -
-                a[1].quantidade
-        );
+            ) => {
 
+                /*
+                Primeiro por quantidade.
+                */
+
+                const diferencaQuantidade =
+                    b[1].quantidade -
+                    a[1].quantidade;
+
+                if (
+                    diferencaQuantidade !== 0
+                ) {
+
+                    return diferencaQuantidade;
+                }
+
+                /*
+                Em caso de empate,
+                maior faturamento primeiro.
+                */
+
+                return (
+                    b[1].faturamento -
+                    a[1].faturamento
+                );
+            }
+        );
 
     if (
         !produtosRanking.length
@@ -3450,13 +3423,11 @@ function renderizarRanking(
                 </h3>
 
                 <p>
-                    O ranking aparecerá aqui conforme
-                    os pedidos forem realizados.
+                    Não existem vendas nesse período.
                 </p>
 
             </div>
         `;
-
 
         if (
             relatorioProdutoMaisVendido
@@ -3466,14 +3437,11 @@ function renderizarRanking(
                 "—";
         }
 
-
         return;
     }
 
-
     const primeiro =
         produtosRanking[0];
-
 
     if (
         relatorioProdutoMaisVendido
@@ -3482,7 +3450,6 @@ function renderizarRanking(
         relatorioProdutoMaisVendido.textContent =
             primeiro[0];
     }
-
 
     rankingProdutos.innerHTML =
         produtosRanking
@@ -3549,7 +3516,6 @@ function renderizarPedidosRecentes(
         return;
     }
 
-
     const recentes =
         [...lista]
             .sort(
@@ -3565,14 +3531,12 @@ function renderizarPedidosRecentes(
                             )
                         );
 
-
                     const dataB =
                         converterData(
                             obterDataPedido(
                                 b
                             )
                         );
-
 
                     return (
                         (dataB?.getTime() || 0) -
@@ -3585,7 +3549,6 @@ function renderizarPedidosRecentes(
                 10
             );
 
-
     if (!recentes.length) {
 
         relatorioPedidosLista.innerHTML = `
@@ -3596,7 +3559,7 @@ function renderizarPedidosRecentes(
                 </h3>
 
                 <p>
-                    Os pedidos aparecerão aqui.
+                    Não existem pedidos nesse período.
                 </p>
 
             </div>
@@ -3604,7 +3567,6 @@ function renderizarPedidosRecentes(
 
         return;
     }
-
 
     relatorioPedidosLista.innerHTML =
         recentes
@@ -3616,23 +3578,19 @@ function renderizarPedidosRecentes(
                         pedido.nome_cliente ||
                         "Cliente";
 
-
                     const total =
                         obterTotalPedido(
                             pedido
                         );
-
 
                     const tipo =
                         pedido.tipo_entrega ||
                         pedido.tipo ||
                         "entrega";
 
-
                     const pagamento =
                         pedido.pagamento ||
                         "Não informado";
-
 
                     const data =
                         converterData(
@@ -3641,14 +3599,12 @@ function renderizarPedidosRecentes(
                             )
                         );
 
-
                     const dataTexto =
                         data
                             ? data.toLocaleString(
                                 "pt-BR"
                             )
                             : "Data não informada";
-
 
                     return `
                         <div
@@ -3703,6 +3659,123 @@ function renderizarPedidosRecentes(
 
 /*
 =========================================================
+STATUS DOS PEDIDOS
+=========================================================
+*/
+
+function renderizarStatusPedidos(
+    lista
+) {
+
+    if (!relatorioStatusLista) {
+        return;
+    }
+
+    if (!lista.length) {
+
+        relatorioStatusLista.innerHTML = `
+            <div class="empty-state">
+
+                <h3>
+                    Nenhum pedido no período
+                </h3>
+
+                <p>
+                    Não existem pedidos nesse período.
+                </p>
+
+            </div>
+        `;
+
+        return;
+    }
+
+    const statusMap = {};
+
+    lista.forEach(
+        pedido => {
+
+            const status =
+                pedido.status ||
+                "novo";
+
+            if (!statusMap[status]) {
+
+                statusMap[status] = {
+                    quantidade: 0,
+                    total: 0
+                };
+            }
+
+            statusMap[status].quantidade++;
+
+            statusMap[status].total +=
+                obterTotalPedido(
+                    pedido
+                );
+        }
+    );
+
+    const nomesStatus = {
+        novo: "🆕 Novo",
+        preparando: "👩‍🍳 Preparando",
+        concluido: "✅ Concluído",
+        cancelado: "❌ Cancelado"
+    };
+
+    relatorioStatusLista.innerHTML =
+        Object.entries(
+            statusMap
+        )
+        .map(
+            ([status, dados]) => {
+
+                const nome =
+                    nomesStatus[status] ||
+                    status;
+
+                return `
+                    <div
+                        class="cart-item"
+                    >
+
+                        <div>
+
+                            <strong>
+                                ${nome}
+                            </strong>
+
+                            <small>
+                                ${dados.quantidade}
+                                ${
+                                    dados.quantidade === 1
+                                        ? "pedido"
+                                        : "pedidos"
+                                }
+                            </small>
+
+                        </div>
+
+                        <div>
+
+                            <strong>
+                                ${dinheiro(
+                                    dados.total
+                                )}
+                            </strong>
+
+                        </div>
+
+                    </div>
+                `;
+            }
+        )
+        .join("");
+}
+
+
+/*
+=========================================================
 FILTROS DOS RELATÓRIOS
 =========================================================
 */
@@ -3712,7 +3785,7 @@ reportFilters.forEach(
 
         botao.addEventListener(
             "click",
-            () => {
+            async () => {
 
                 reportFilters.forEach(
                     item => {
@@ -3723,16 +3796,21 @@ reportFilters.forEach(
                     }
                 );
 
-
                 botao.classList.add(
                     "active"
                 );
-
 
                 periodoRelatorioAtual =
                     botao.dataset.periodo ||
                     "hoje";
 
+                /*
+                Não precisamos fazer outra
+                requisição ao servidor.
+
+                Os pedidos já estão carregados
+                e apenas recalculamos o período.
+                */
 
                 atualizarRelatorio();
             }
@@ -3863,31 +3941,25 @@ document.addEventListener(
             return;
         }
 
-
         produtoModal?.classList.add(
             "hidden"
         );
-
 
         checkoutModal?.classList.add(
             "hidden"
         );
 
-
         loginModal?.classList.add(
             "hidden"
         );
-
 
         adminProductModal?.classList.add(
             "hidden"
         );
 
-
         mensagemModal?.classList.add(
             "hidden"
         );
-
 
         fecharCarrinhoPainel();
     }
@@ -3910,50 +3982,88 @@ document.addEventListener(
 
 
         /*
-        Carrinho
+        -----------------------------------------------
+        CARRINHO
+        -----------------------------------------------
         */
 
         atualizarCarrinho();
 
 
         /*
-        Produtos
+        -----------------------------------------------
+        TIPO DE PEDIDO
+        -----------------------------------------------
+        */
+
+        tipoEntregaAtual =
+            "entrega";
+
+        deliveryButtons.forEach(
+            botao => {
+
+                botao.classList.toggle(
+                    "active",
+                    botao.dataset.tipo ===
+                    "entrega"
+                );
+            }
+        );
+
+
+        /*
+        Nenhum tipo de pedido
+        mostra endereço.
+        */
+
+        campoEndereco?.classList.add(
+            "hidden"
+        );
+
+
+        /*
+        -----------------------------------------------
+        PRODUTOS
+        -----------------------------------------------
         */
 
         await carregarProdutos();
 
 
         /*
-        Garante estado inicial
-        */
-
-        tipoEntregaAtual =
-            "entrega";
-
-
-        campoEndereco?.classList.remove(
-            "hidden"
-        );
-
-
-        /*
-        O painel administrativo
-        começa escondido.
+        -----------------------------------------------
+        ESTADO INICIAL
+        -----------------------------------------------
         */
 
         adminArea?.classList.add(
             "hidden"
         );
 
-
-        /*
-        Cliente começa visível.
-        */
-
         clienteArea?.classList.remove(
             "hidden"
         );
 
+
+        /*
+        -----------------------------------------------
+        RELATÓRIO
+        -----------------------------------------------
+        */
+
+        periodoRelatorioAtual =
+            "hoje";
+
+        reportFilters.forEach(
+            botao => {
+
+                botao.classList.toggle(
+                    "active",
+                    botao.dataset.periodo ===
+                    "hoje"
+                );
+            }
+        );
 
         console.log(
             "Produtos carregados:",

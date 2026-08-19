@@ -152,6 +152,7 @@
 
                     <h2>
                         Escolha seu doce
+            
                     </h2>
 
                     <p>
@@ -954,61 +955,37 @@
                         "
                     >
 
-                        <button
-                            class="primary-button report-filter active"
-                            data-periodo="hoje"
-                            type="button"
-                        >
-                            Hoje
-                        </button>
+                        <div class="report-filters">
 
-                        <button
-                            class="report-filter"
-                            data-periodo="7dias"
-                            type="button"
-                            style="
-                                border:1px solid var(--border);
-                                background:white;
-                                color:var(--text);
-                                border-radius:10px;
-                                padding:12px 16px;
-                                font-weight:700;
-                            "
-                        >
-                            Últimos 7 dias
-                        </button>
+    <button
+        type="button"
+        class="report-filter active"
+        data-periodo="hoje">
+        Hoje
+    </button>
 
-                        <button
-                            class="report-filter"
-                            data-periodo="mes"
-                            type="button"
-                            style="
-                                border:1px solid var(--border);
-                                background:white;
-                                color:var(--text);
-                                border-radius:10px;
-                                padding:12px 16px;
-                                font-weight:700;
-                            "
-                        >
-                            Este mês
-                        </button>
+    <button
+        type="button"
+        class="report-filter"
+        data-periodo="7dias">
+        Esta semana
+    </button>
 
-                        <button
-                            class="report-filter"
-                            data-periodo="30dias"
-                            type="button"
-                            style="
-                                border:1px solid var(--border);
-                                background:white;
-                                color:var(--text);
-                                border-radius:10px;
-                                padding:12px 16px;
-                                font-weight:700;
-                            "
-                        >
-                            Últimos 30 dias
-                        </button>
+    <button
+        type="button"
+        class="report-filter"
+        data-periodo="mes">
+        Este mês
+    </button>
+
+    <button
+        type="button"
+        class="report-filter"
+        data-periodo="30dias">
+        Últimos 30 dias
+    </button>
+
+</div>
 
                     </div>
 
@@ -1107,6 +1084,27 @@
 
                     </div>
 
+
+                    <div class="stat-card">
+
+                        <span>
+                            🎯
+                        </span>
+
+                        <div>
+
+                            <small>
+                                Ticket médio
+                            </small>
+
+                            <strong id="relatorioTicketMedio">
+                                R$ 0,00
+                            </strong>
+
+                        </div>
+
+                    </div>
+
                 </div>
 
 
@@ -1192,6 +1190,51 @@
 
                             <p>
                                 Os pedidos aparecerão aqui.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- STATUS DOS PEDIDOS -->
+
+                <div
+                    style="
+                        background:white;
+                        border:1px solid var(--border);
+                        border-radius:18px;
+                        padding:24px;
+                        margin-bottom:45px;
+                        box-shadow:var(--shadow-sm);
+                    "
+                >
+
+                    <div class="admin-section-title">
+
+                        <span>
+                            SITUAÇÃO
+                        </span>
+
+                        <h2>
+                            Status dos pedidos
+                        </h2>
+
+                    </div>
+
+
+                    <div id="relatorioStatusLista">
+
+                        <div class="empty-state">
+
+                            <h3>
+                                Nenhum pedido no período
+                            </h3>
+
+                            <p>
+                                Os status dos pedidos aparecerão aqui.
                             </p>
 
                         </div>
