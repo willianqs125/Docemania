@@ -2486,96 +2486,86 @@ input::placeholder {
    FILTROS DOS RELATÓRIOS
 ========================================================= */
 
-.report-filters {
-    background: white;
-
-    border: 1px solid var(--border);
-
-    border-radius: 18px;
-
-    padding: 20px;
-
-    margin-bottom: 22px;
-
+.report-period-buttons {
     display: flex;
-    align-items: flex-end;
-
-    gap: 14px;
-
-    box-shadow: var(--shadow-sm);
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
 }
 
-.report-filter {
-    flex: 1;
-}
+.report-period-buttons .report-filter {
+    flex: 0 0 auto;
 
-.report-filter label {
-    display: block;
-
-    color: var(--text);
-
-    font-size: 12px;
-
-    font-weight: 750;
-
-    margin-bottom: 7px;
-}
-
-.report-filter input,
-.report-filter select {
-    width: 100%;
-
-    min-height: 45px;
-
-    border: 1px solid #ead9e0;
-
-    background: white;
-
-    border-radius: 10px;
-
-    padding: 10px 12px;
-
-    color: var(--text);
-
-    outline: none;
-
-    transition: .2s ease;
-}
-
-.report-filter input:focus,
-.report-filter select:focus {
-    border-color: var(--pink);
-
-    box-shadow:
-        0 0 0 3px rgba(232,62,140,.10);
-}
-
-.report-filter-button {
-    min-height: 45px;
-
-    border: none;
-
-    border-radius: 10px;
+    min-height: 44px;
 
     padding: 0 18px;
 
-    background: var(--pink);
+    border: 1px solid var(--border);
 
-    color: white;
+    border-radius: 12px;
 
+    background: #ffffff;
+
+    color: var(--text);
+
+    font-size: 13px;
     font-weight: 750;
 
-    transition: .2s ease;
+    cursor: pointer;
 
-    white-space: nowrap;
+    transition:
+        background .2s ease,
+        border-color .2s ease,
+        color .2s ease,
+        transform .2s ease,
+        box-shadow .2s ease;
 }
 
-.report-filter-button:hover {
+.report-period-buttons .report-filter:hover {
+    border-color: var(--pink);
+
+    color: var(--pink);
+
+    background: var(--pink-light);
+
+    transform: translateY(-1px);
+}
+
+.report-period-buttons .report-filter.active {
+    background: var(--pink);
+
+    border-color: var(--pink);
+
+    color: #ffffff;
+
+    box-shadow:
+        0 7px 18px rgba(232, 62, 140, .20);
+}
+
+.report-period-buttons .report-filter.active:hover {
     background: var(--pink-dark);
 
-    transform: translateY(-2px);
+    border-color: var(--pink-dark);
+
+    color: #ffffff;
 }
 
+@media (max-width: 600px) {
+
+    .report-period-buttons {
+        display: grid;
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        width: 100%;
+    }
+
+    .report-period-buttons .report-filter {
+        width: 100%;
+        padding: 0 10px;
+    }
+}
 
 /* =========================================================
    RESUMO DOS RELATÓRIOS
