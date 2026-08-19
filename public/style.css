@@ -3268,3 +3268,151 @@ input::placeholder {
         font-size: 11px;
     }
 }
+
+/* =========================================================
+   BOTÕES DE PERÍODO DOS RELATÓRIOS
+========================================================= */
+
+.report-period-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+
+/* BOTÃO */
+
+.report-period-buttons .report-filter {
+
+    appearance: none;
+    -webkit-appearance: none;
+
+    border: 1px solid var(--border);
+
+    background: #ffffff;
+
+    color: var(--muted);
+
+    min-height: 44px;
+
+    padding: 0 18px;
+
+    border-radius: 12px;
+
+    font-size: 13px;
+
+    font-weight: 750;
+
+    line-height: 1;
+
+    white-space: nowrap;
+
+    transition:
+        background .2s ease,
+        border-color .2s ease,
+        color .2s ease,
+        transform .2s ease,
+        box-shadow .2s ease;
+
+    cursor: pointer;
+}
+
+
+/* HOVER */
+
+.report-period-buttons .report-filter:hover {
+
+    border-color: var(--pink);
+
+    color: var(--pink);
+
+    background: var(--pink-light);
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 5px 15px rgba(232, 62, 140, .10);
+}
+
+
+/* BOTÃO ATIVO */
+
+.report-period-buttons .report-filter.active {
+
+    background: var(--pink);
+
+    border-color: var(--pink);
+
+    color: #ffffff;
+
+    box-shadow:
+        0 7px 18px rgba(232, 62, 140, .20);
+}
+
+
+/* HOVER DO ATIVO */
+
+.report-period-buttons .report-filter.active:hover {
+
+    background: var(--pink-dark);
+
+    border-color: var(--pink-dark);
+
+    color: #ffffff;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 8px 20px rgba(201, 45, 117, .22);
+}
+
+
+/* CLIQUE */
+
+.report-period-buttons .report-filter:active {
+
+    transform: translateY(0);
+
+}
+
+
+/* =========================================================
+   CELULAR
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .report-period-buttons {
+
+        display: grid;
+
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+
+        gap: 9px;
+
+        width: 100%;
+    }
+
+    .report-period-buttons .report-filter {
+
+        width: 100%;
+
+        min-height: 45px;
+
+        padding: 0 10px;
+
+        font-size: 12px;
+    }
+}
+
+
+@media (max-width: 380px) {
+
+    .report-period-buttons {
+
+        grid-template-columns: 1fr;
+    }
+
+}
